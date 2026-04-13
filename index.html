@@ -204,17 +204,21 @@
                             };
                         });
 
-                        // Standard Apple iTunes Fetch
+                        // Apple iTunes Fetch with CORS Proxy Fix
                         this.songs.forEach(async (s, index) => {
                             try {
                                 const term = encodeURIComponent(`${s.artist} ${s.title}`);
-                                const r = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`);
+                                const itunesUrl = `https://itunes.apple.com/search?term=${term}&entity=song&limit=1`;
+                                
+                                // Wrapping with corsproxy.io for GitHub compatibility
+                                const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`);
                                 const d = await r.json();
+                                
                                 if (d.results && d.results[0]) {
                                     this.songs[index].thumbnail = d.results[0].artworkUrl100.replace('100x100bb', '800x800bb');
                                 }
                             } catch(e) {
-                                console.warn("Apple fetch failed for:", s.title);
+                                console.warn("Proxy fetch failed for:", s.title);
                             }
                         });
 
