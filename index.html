@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Audify</title>
+    <link rel="icon" type="image/png" href="assets/ic.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        :root { --app-height: 100dvh; }
+
+        body { 
+            background-color: #000; color: white; overflow: hidden; margin: 0;
+            height: var(--app-height); width: 100vw; touch-action: manipulation;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .app-shell {
+            width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto;
+            position: relative; background-color: #121212; display: flex;
+            flex-direction: column; padding-top: env(safe-area-inset-top);
+        }
+
+        .dynamic-bg {
+            position: absolute; inset: 0; z-index: -1;
+            filter: blur(80px) brightness(0.3);
+            transform: scale(1.2); transition: background-image 0.8s ease-in-out;
+            background-size: cover; background-position: center;
+        }
+
+        .spotify-gradient {
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, #121212 100%);
+            z-index: 0;
+        }
+
+        .progress-container { 
+            height: 30px; display: flex; align-items: center; 
+            cursor: pointer; width: 100%; touch-action: none; position: relative;
+        }
+        .progress-rail { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; width: 100%; position: relative; pointer-events: none; }
+        .progress-fill { height: 100%; background: #1DB954; border-radius: 2px; position: absolute; left: 0; top: 0; pointer-events: none; }
+        .progress-knob { 
+            position: absolute; top: 50%; transform: translate(-50%, -50%); 
+            width: 12px; height: 12px; background: white; border-radius: 50%; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8); pointer-events: none;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .progress-container:hover .progress-knob { opacity: 1; }
+
+        .btn-active:active { transform: scale(0.96); opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div x-data="audifyApp()" x-init="initApp()">
+        
+        <div class="fixed inset-0 bg-black z-[100] flex items-center justify-center" x-show="showSplash" x-transition:leave="transition duration-500">
+            <img src="assets/ic.png" class="w-48 h-48 animate-pulse object-contain">
+        </div>
+
+        <div class="app-shell" x-show="!showSplash" x-cloak>
+            
+            <main class="flex-grow overflow-y-auto px-5 pt-8 pb-44" x-show="currentTab === 'home'">
+                <div class="flex items-center justify-between mb-8">
+                    <h1 class="text-3xl font-black tracking-tight">Library</h1>
+                    <img src="assets/ic.png" class="w-14 h-14 object-contain">
+                </div>
+
+                <div class="flex flex-col gap-5">
+                    <template x-for="song in songs">
+                        <div class="flex items-center gap-4 btn-active" @click="playSong(song)">
+                            <div class="w-14 h-14 flex-shrink-0 relative bg-zinc-800 rounded shadow-lg overflow-hidden">
+                                <template x-if="song.thumbnail">
+                                    <img :src="song.thumbnail" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!song.thumbnail">
+                                    <div class="w-full h-full flex items-center justify-center">
+                                        <i class="fa-solid fa-music text-white/10"></i>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="flex-grow overflow-hidden text-left">
+                                <p class="text-sm font-bold truncate" x-text="song.title"></p>
+                                <p class="text-xs text-zinc-400 font-medium truncate" x-text="song.artist"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </main>
+
+            <div x-show="activeTrack && !playerOpen" @click="playerOpen = true" 
+                 class="absolute bottom-[95px] left-2 right-2 bg-[#282828] h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
+                <img :src="activeTrack?.thumbnail" class="w-10 h-10 rounded object-cover shadow-lg" x-show="activeTrack?.thumbnail">
+                <div class="flex-grow overflow-hidden text-left">
+                    <p class="text-[11px] font-bold truncate" x-text="activeTrack?.title"></p>
+                    <p class="text-[10px] text-zinc-400 truncate font-medium" x-text="activeTrack?.artist"></p>
+                </div>
+                <button @click.stop="togglePlay()">
+                    <i class="fa-solid text-white text-lg px-2" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                </button>
+            </div>
+
+            <div x-show="playerOpen" x-transition:enter="transition duration-500 ease-[cubic-bezier(0.3,0,0,1)] transform" x-transition:enter-start="translate-y-full"
+                 class="absolute inset-0 bg-[#121212] z-50 flex flex-col p-8">
+                
+                <div class="dynamic-bg" :style="`background-image: url(${activeTrack?.thumbnail})`"></div>
+                <div class="spotify-gradient"></div>
+
+                <header class="flex justify-between items-center z-10 mb-8">
+                    <i class="fa-solid fa-chevron-down text-xl" @click="playerOpen = false"></i>
+                    <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Audify Player</p>
+                    <i class="fa-solid fa-ellipsis-vertical text-xl opacity-60"></i>
+                </header>
+
+                <div class="flex-grow flex flex-col justify-center z-10">
+                    <div class="w-full aspect-square mb-12 shadow-2xl rounded-lg overflow-hidden bg-zinc-900">
+                         <img :src="activeTrack?.thumbnail" class="w-full h-full object-cover" x-show="activeTrack?.thumbnail">
+                         <div class="w-full h-full flex items-center justify-center" x-show="!activeTrack?.thumbnail">
+                            <img src="assets/ic.png" class="w-24 h-24 opacity-20">
+                         </div>
+                    </div>
+
+                    <div class="text-left mb-6">
+                        <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
+                        <p class="text-lg text-white/50 font-bold truncate" x-text="activeTrack?.artist"></p>
+                    </div>
+
+                    <div class="mb-8">
+                        <div class="progress-container" @mousedown="handleSeek($event)" @touchstart="handleDrag($event)" @touchmove="handleDrag($event)">
+                            <div class="progress-rail">
+                                <div class="progress-fill" :style="`width: ${progress}%`"></div>
+                                <div class="progress-knob" :style="`left: ${progress}%`"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between mt-[-4px]">
+                            <span class="text-[10px] text-white/40 font-bold" x-text="currentTimeStr">0:00</span>
+                            <span class="text-[10px] text-white/40 font-bold" x-text="durationStr">0:00</span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-8">
+                        <i class="fa-solid fa-shuffle text-xl opacity-40"></i>
+                        <i class="fa-solid fa-backward-step text-3xl"></i>
+                        <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active shadow-xl">
+                            <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                        </button>
+                        <i class="fa-solid fa-forward-step text-3xl"></i>
+                        <i class="fa-solid fa-repeat text-xl opacity-40"></i>
+                    </div>
+                </div>
+            </div>
+
+            <audio id="mainAudio" preload="auto"></audio>
+        </div>
+    </div>
+
+    <script>
+        function audifyApp() {
+            return {
+                showSplash: true,
+                currentTab: 'home',
+                playerOpen: false,
+                isPlaying: false,
+                songs: [],
+                activeTrack: null,
+                progress: 0,
+                currentTimeStr: '0:00',
+                durationStr: '0:00',
+
+                initApp() {
+                    this.fetchData();
+                    const audio = document.getElementById('mainAudio');
+                    audio.ontimeupdate = () => {
+                        if (audio.duration) {
+                            this.progress = (audio.currentTime / audio.duration) * 100;
+                            this.currentTimeStr = this.formatTime(audio.currentTime);
+                            this.durationStr = this.formatTime(audio.duration);
+                        }
+                    };
+                    audio.onplay = () => this.isPlaying = true;
+                    audio.onpause = () => this.isPlaying = false;
+                    setTimeout(() => { this.showSplash = false; }, 2000);
+                },
+
+                async fetchData() {
+                    try {
+                        const srvResp = await fetch('./serverlist.json');
+                        const servers = await srvResp.json();
+                        const listResp = await fetch('./list.json');
+                        const songStrings = await listResp.json();
+
+                        this.songs = songStrings.map(songStr => {
+                            const parts = songStr.split(' - ');
+                            return {
+                                title: parts[1]?.trim() || 'Track',
+                                artist: parts[0]?.trim() || 'Artist',
+                                thumbnail: null, 
+                                url: `${servers[0].url}/${songStr.trim()}.mp3`
+                            };
+                        });
+
+                        // Standard Apple iTunes Fetch
+                        this.songs.forEach(async (s, index) => {
+                            try {
+                                const term = encodeURIComponent(`${s.artist} ${s.title}`);
+                                const r = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`);
+                                const d = await r.json();
+                                if (d.results && d.results[0]) {
+                                    this.songs[index].thumbnail = d.results[0].artworkUrl100.replace('100x100bb', '800x800bb');
+                                }
+                            } catch(e) {
+                                console.warn("Apple fetch failed for:", s.title);
+                            }
+                        });
+
+                        this.activeTrack = this.songs[0];
+                    } catch (e) { console.error(e); }
+                },
+
+                formatTime(secs) {
+                    if (isNaN(secs)) return '0:00';
+                    let min = Math.floor(secs / 60);
+                    let sec = Math.floor(secs % 60);
+                    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+                },
+
+                handleSeek(e) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = (e.clientX || e.pageX) - rect.left;
+                    this.calculateSeek(x, rect.width);
+                },
+
+                handleDrag(e) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.touches[0].clientX - rect.left;
+                    this.calculateSeek(x, rect.width);
+                },
+
+                calculateSeek(x, width) {
+                    const audio = document.getElementById('mainAudio');
+                    if (!audio.duration) return;
+                    let percent = Math.min(Math.max(x / width, 0), 1);
+                    audio.currentTime = percent * audio.duration;
+                },
+
+                playSong(song) {
+                    const audio = document.getElementById('mainAudio');
+                    if (this.activeTrack?.url !== song.url) {
+                        this.activeTrack = song;
+                        audio.src = song.url;
+                        audio.load();
+                    }
+                    this.playerOpen = true;
+                    this.togglePlay(true);
+                },
+
+                togglePlay(forcePlay = null) {
+                    const audio = document.getElementById('mainAudio');
+                    if (forcePlay === true) { audio.play().catch(e => {}); return; }
+                    audio.paused ? audio.play().catch(e => {}) : audio.pause();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
