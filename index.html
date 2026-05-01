@@ -66,6 +66,14 @@
             text-align: center;
         }
 
+        .song-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            display: block;
+        }
+
         .lyrics-section {
             min-height: 100vh;
             padding: 20px 0;
@@ -75,7 +83,7 @@
         }
 
         .lyrics-container {
-            padding: 40px 35px;
+            padding: 0 35px;
         }
 
         .lyric-line {
@@ -150,7 +158,6 @@
     <!-- PLAYER PAGE -->
     <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         
-        <!-- SECTION 1: FULL SCREEN CONTROLS -->
         <div class="main-view text-white">
             <div class="artwork-container">
                 <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArtwork">
@@ -159,9 +166,9 @@
             </div>
 
             <div class="player-content">
-                <div class="mb-10">
-                    <h2 class="text-3xl font-black mb-1" x-text="activeTrack?.title"></h2>
-                    <p class="text-xl text-white/40 font-bold" x-text="activeTrack?.artist"></p>
+                <div class="mb-10 w-full overflow-hidden">
+                    <h2 class="text-3xl font-black mb-1 song-title" x-text="activeTrack?.title"></h2>
+                    <p class="text-xl text-white/40 font-bold song-title" x-text="activeTrack?.artist"></p>
                 </div>
 
                 <div class="mb-12">
@@ -187,7 +194,6 @@
             </div>
         </div>
 
-        <!-- SECTION 2: SCROLLABLE LYRICS -->
         <div class="lyrics-section">
             <div class="flex items-center px-10 py-4 border-b border-white/5 mb-6">
                 <p class="text-[10px] font-black uppercase tracking-[3px] text-white/40">Lyrics</p>
@@ -199,6 +205,7 @@
             <div class="lyrics-container">
                 <template x-for="(line, index) in parsedLyrics" :key="index">
                     <div class="lyric-line" 
+                         :id="'line-' + index"
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
@@ -211,11 +218,10 @@
                     <p x-text="lyricsStatus || 'No lyrics found for this track'"></p>
                 </div>
             </div>
-            <div class="h-40"></div>
+            <div class="h-60"></div>
         </div>
     </div>
 
-    <!-- VERSION MODAL -->
     <div x-show="showLyricsList" x-cloak class="fixed inset-0 bg-black/95 z-[600] p-10 flex flex-col justify-center">
         <h3 class="text-white font-black text-2xl mb-8">Choose Version</h3>
         <div class="space-y-4 overflow-y-auto pr-2">
@@ -254,8 +260,35 @@
                 this.songs = await res.json();
             },
             isLineActive(index) {
-                return this.currentTime >= this.parsedLyrics[index].time && 
-                       (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
+                const active = this.currentTime >= this.parsedLyrics[index].time && 
+                             (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
+                
+                if (active) {
+                    this.checkSnapAndScroll(index);
+                }
+                return active;
+            },
+            checkSnapAndScroll(index) {
+                const line = document.getElementById('line-' + index);
+                const container = document.getElementById('mainPlayer');
+                if (!line || !container) return;
+
+                // Check if the highlighted line is currently visible in the container's viewport
+                const rect = line.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                const isVisible = (
+                    rect.top >= containerRect.top &&
+                    rect.bottom <= containerRect.bottom
+                );
+
+                // SNAP FOLLOW: Only scroll if the element is already in view (the user scrolled back to it)
+                // or if it's a brand new song/initial state.
+                if (isVisible || this.lastIndex === -1) {
+                    line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                this.lastIndex = index;
             },
             closePlayer() {
                 this.playerOpen = false;
@@ -269,6 +302,7 @@
                 this.lyricsVersions = [];
                 this.isSyncing = true;
                 this.currentTime = 0;
+                this.lastIndex = -1;
 
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
@@ -338,6 +372,7 @@
                 }).filter(l => l && l.text);
                 this.isSyncing = false;
                 this.showLyricsList = false;
+                this.lastIndex = -1;
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
