@@ -16,11 +16,11 @@
         }
         .app-shell { 
             width: 100%; max-width: 450px; height: 100%; margin: 0 auto; 
-            position: relative; background: linear-gradient(to bottom, #1a1a1a, #000); 
+            position: relative; background: #121212; 
             display: flex; flex-direction: column;
             padding-top: env(safe-area-inset-top);
         }
-        /* Spotify Card Style */
+        
         .song-card {
             background: #181818;
             padding: 12px;
@@ -28,17 +28,36 @@
             transition: background 0.3s ease;
         }
         .song-card:active { background: #282828; transform: scale(0.98); }
-        
-        .dynamic-bg { 
-            position: absolute; inset: 0; z-index: -1; 
-            filter: blur(60px) brightness(0.4); 
-            transform: scale(1.5); transition: background-image 1s ease-in-out;
-            background-size: cover; background-position: center; 
+
+        /* Immersive Player Styles */
+        .hero-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60%; /* Occupies top 60% of the screen */
+            z-index: 0;
         }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
-        
+        .hero-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .hero-fade {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(18,18,18,0) 0%, rgba(18,18,18,0.2) 50%, #121212 100%);
+        }
+
+        .player-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px 32px 60px 32px;
+        }
+
         #player-container { position: absolute; top: -9999px; left: -9999px; visibility: hidden; }
     </style>
 </head>
@@ -53,30 +72,24 @@
                 <h1 class="text-2xl font-black tracking-tighter">Good afternoon</h1>
                 <div class="flex gap-4">
                     <i class="fa-solid fa-bell opacity-70"></i>
-                    <i class="fa-solid fa-clock-rotate-left opacity-70"></i>
                     <i class="fa-solid fa-gear opacity-70"></i>
                 </div>
             </header>
             
-            <!-- Search Bar -->
             <div class="sticky top-0 z-20 pb-4 bg-transparent">
-                <div class="flex items-center bg-white/10 rounded-md px-3 py-2 border border-white/5">
+                <div class="flex items-center bg-white/10 rounded-md px-3 py-2 border border-white/5 backdrop-blur-md">
                     <i class="fa-solid fa-magnifying-glass text-white/50 mr-2"></i>
                     <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                           placeholder="What do you want to listen to?" 
+                           placeholder="Search music..." 
                            class="bg-transparent w-full outline-none text-sm font-medium">
                 </div>
             </div>
 
-            <!-- Grid Layout -->
             <div class="grid grid-cols-2 gap-3">
                 <template x-for="song in songs" :key="song.id">
                     <div class="song-card flex flex-col gap-3" @click="playSong(song)">
                         <div class="relative w-full aspect-square shadow-xl">
                             <img :src="song.thumbnail" class="w-full h-full rounded-md object-cover">
-                            <div class="absolute bottom-2 right-2 w-8 h-8 bg-[#1DB954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                <i class="fa-solid fa-play text-black text-xs"></i>
-                            </div>
                         </div>
                         <div class="overflow-hidden">
                             <p class="text-sm font-bold truncate text-white" x-text="song.title"></p>
@@ -87,57 +100,57 @@
             </div>
         </main>
 
-        <!-- Mini Player (Spotify Style) -->
+        <!-- Mini Player -->
         <div x-show="activeTrack && !playerOpen" @click="playerOpen = true" x-cloak
-             class="mx-2 mb-2 p-2 bg-[#442222] rounded-md flex items-center gap-3 shadow-2xl animate-fade-in">
+             class="mx-2 mb-2 p-2 bg-[#282828] rounded-md flex items-center gap-3 shadow-2xl">
             <img :src="activeTrack?.thumbnail" class="w-10 h-10 rounded shadow-md object-cover">
             <div class="flex-grow overflow-hidden">
                 <p class="text-xs font-bold truncate" x-text="activeTrack?.title"></p>
                 <p class="text-[10px] text-white/70 truncate" x-text="activeTrack?.artist"></p>
             </div>
-            <div class="flex items-center gap-4 px-2">
-                <i class="fa-solid fa-desktop text-white/50 text-sm"></i>
-                <button @click.stop="togglePlay()">
-                    <i class="fa-solid" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
-                </button>
-            </div>
+            <button @click.stop="togglePlay()" class="px-3">
+                <i class="fa-solid" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+            </button>
         </div>
 
-        <!-- Full Player Page -->
+        <!-- Immersive Full Player -->
         <div x-show="playerOpen" x-cloak 
-             class="absolute inset-0 bg-[#121212] z-50 flex flex-col px-8 pt-12 pb-20 overflow-hidden">
-            <div class="dynamic-bg" :style="`background-image: url(${activeTrack?.thumbnail})`"></div>
+             class="absolute inset-0 bg-[#121212] z-50 flex flex-col overflow-hidden">
             
-            <header class="flex justify-between items-center mb-10">
-                <i class="fa-solid fa-chevron-down text-lg" @click="playerOpen = false"></i>
-                <p class="text-[11px] font-bold uppercase tracking-[2px]">Playing from search</p>
-                <i class="fa-solid fa-ellipsis text-lg"></i>
-            </header>
+            <!-- Immersive Hero Section -->
+            <div class="hero-container">
+                <img :src="activeTrack?.thumbnail" class="hero-image">
+                <div class="hero-fade"></div>
+            </div>
+            
+            <div class="player-content">
+                <header class="flex justify-between items-center mb-auto pt-4">
+                    <i class="fa-solid fa-chevron-down text-xl" @click="playerOpen = false"></i>
+                    <p class="text-[11px] font-bold uppercase tracking-[2px] opacity-80">Audify Player</p>
+                    <i class="fa-solid fa-ellipsis text-xl"></i>
+                </header>
 
-            <div class="flex-grow flex flex-col justify-center">
-                <div class="w-full aspect-square rounded-lg shadow-2xl mb-12 overflow-hidden">
-                    <img :src="activeTrack?.thumbnail" class="w-full h-full object-cover">
-                </div>
-                
-                <div class="flex justify-between items-center mb-8">
-                    <div class="overflow-hidden">
-                        <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
-                        <p class="text-lg text-[#b3b3b3] font-bold" x-text="activeTrack?.artist"></p>
+                <div class="mt-auto">
+                    <div class="flex justify-between items-end mb-8">
+                        <div class="overflow-hidden mr-4">
+                            <h2 class="text-3xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
+                            <p class="text-xl text-[#b3b3b3] font-bold" x-text="activeTrack?.artist"></p>
+                        </div>
+                        <i class="fa-regular fa-heart text-2xl opacity-60"></i>
                     </div>
-                    <i class="fa-regular fa-heart text-2xl opacity-60"></i>
-                </div>
 
-                <!-- Spotify Control Set -->
-                <div class="flex justify-between items-center mt-4">
-                    <i class="fa-solid fa-shuffle text-xl text-[#1DB954]"></i>
-                    <i class="fa-solid fa-backward-step text-3xl"></i>
-                    
-                    <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                        <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
-                    </button>
-                    
-                    <i class="fa-solid fa-forward-step text-3xl"></i>
-                    <i class="fa-solid fa-repeat text-xl opacity-60"></i>
+                    <!-- Spotify Style Controls -->
+                    <div class="flex justify-between items-center">
+                        <i class="fa-solid fa-shuffle text-xl text-[#1DB954]"></i>
+                        <i class="fa-solid fa-backward-step text-3xl"></i>
+                        
+                        <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+                            <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                        </button>
+                        
+                        <i class="fa-solid fa-forward-step text-3xl"></i>
+                        <i class="fa-solid fa-repeat text-xl opacity-60"></i>
+                    </div>
                 </div>
             </div>
         </div>
@@ -155,7 +168,7 @@
             playerOpen: false, isPlaying: false,
 
             initApp() {
-                this.fetchData('top hits 2026');
+                this.fetchData('top hits');
             },
 
             async fetchData(q) {
