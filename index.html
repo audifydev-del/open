@@ -37,7 +37,6 @@
             overflow: hidden; 
         }
 
-        /* MAIN WRAPPER */
         #verticalScrollContainer {
             height: 100vh;
             overflow-y: auto;
@@ -63,7 +62,6 @@
             background: var(--theme-color);
         }
 
-        /* FIXED: TARGETED SCROLLING WINDOW */
         .lyrics-scroll-window {
             flex-grow: 1;
             overflow-y: auto;
@@ -77,10 +75,11 @@
 
         .lyric-line {
             font-size: 2rem; line-height: 1.2; font-weight: 900;
-            margin-bottom: 30px; transition: color 0.3s ease, transform 0.3s ease;
+            margin-bottom: 30px; transition: color 0.3s ease;
             color: rgba(255, 255, 255, 0.1); text-align: left;
         }
-        .lyric-line.active { color: #fff; transform: scale(1.02); }
+        /* Keep only the color change so you see where you are */
+        .lyric-line.active { color: #fff; }
 
         input[type="range"].progress-bar { width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); height: 4px; border-radius: 10px; }
         input[type="range"].progress-bar::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; background: #fff; border-radius: 50%; }
@@ -92,7 +91,6 @@
 
 <div x-data="audifyApp()" x-init="initApp()" class="app-shell">
     
-    <!-- SEARCH LIST -->
     <div class="h-full flex flex-col" x-show="!playerOpen">
         <header class="p-6 text-white">
             <h1 class="text-4xl font-black mb-4 tracking-tighter">Audify</h1>
@@ -111,7 +109,6 @@
         </main>
     </div>
 
-    <!-- PLAYER PANEL -->
     <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div id="verticalScrollContainer" @scroll.passive="handleMainScroll">
             
@@ -151,14 +148,14 @@
                     <span class="text-[10px] font-black uppercase tracking-[3px] text-white/30">Lyrics</span>
                     <button @click="showLyricsList = true" class="text-[10px] font-black bg-white/5 px-4 py-2 rounded-full text-white/50">Switch Version</button>
                 </div>
-                <div class="lyrics-scroll-window" id="lyricsWindow" @scroll="handleLyricsScroll">
-                    <div class="h-[20vh]"></div>
+                <div class="lyrics-scroll-window" id="lyricsWindow">
+                    <div class="h-[10vh]"></div>
                     <div class="lyrics-container">
                         <template x-for="(line, index) in parsedLyrics" :key="index">
-                            <div class="lyric-line" :id="'line-' + index" :class="{ 'active': isLineActive(index) }" x-text="line.text"></div>
+                            <div class="lyric-line" :class="{ 'active': isLineActive(index) }" x-text="line.text"></div>
                         </template>
                     </div>
-                    <div class="h-[60vh]"></div>
+                    <div class="h-[40vh]"></div>
                 </div>
             </div>
         </div>
@@ -187,7 +184,6 @@
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
             showLyricsList: false, lyricsVersions: [], selectedLyricsId: null,
-            isUserScrollingLyrics: false, lyricsScrollTimeout: null,
             mainScrollTimeout: null,
 
             initApp() {
@@ -201,36 +197,9 @@
                 this.songs = await res.json();
             },
             isLineActive(index) {
-                const active = this.currentTime >= this.parsedLyrics[index].time && 
-                             (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
-                if (active && index !== this.lastIndex) {
-                    this.lastIndex = index;
-                    this.syncLyricsScroll(index);
-                }
-                return active;
-            },
-            handleLyricsScroll() {
-                this.isUserScrollingLyrics = true;
-                clearTimeout(this.lyricsScrollTimeout);
-                this.lyricsScrollTimeout = setTimeout(() => { this.isUserScrollingLyrics = false; }, 3000);
-            },
-            syncLyricsScroll(index) {
-                // FIXED: We check if the user is currently on the "Lyrics Page"
-                const mainContainer = document.getElementById('verticalScrollContainer');
-                const onLyricsPage = mainContainer.scrollTop > (window.innerHeight * 0.5);
-
-                // ONLY scroll the lyrics window if we are on the lyrics page AND user isn't manual scrolling
-                if (onLyricsPage && !this.isUserScrollingLyrics) {
-                    const windowEl = document.getElementById('lyricsWindow');
-                    const lineEl = document.getElementById('line-' + index);
-                    
-                    if (windowEl && lineEl) {
-                        // Manual math calculation instead of scrollIntoView 
-                        // to prevent the main player from jumping
-                        const targetPos = lineEl.offsetTop - (windowEl.offsetHeight / 2.5);
-                        windowEl.scrollTo({ top: targetPos, behavior: 'smooth' });
-                    }
-                }
+                // Returns true for current line, false for others. NO SCROLLING LOGIC HERE.
+                return this.currentTime >= this.parsedLyrics[index].time && 
+                       (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
             },
             handleMainScroll(e) {
                 clearTimeout(this.mainScrollTimeout);
@@ -246,7 +215,7 @@
             closePlayer() { this.playerOpen = false; },
             async playSong(song) {
                 this.activeTrack = song; this.playerOpen = true; this.isPlaying = true;
-                this.currentTime = 0; this.lastIndex = -1; this.parsedLyrics = [];
+                this.currentTime = 0; this.parsedLyrics = [];
                 
                 const startVideo = () => {
                     if (player && player.loadVideoById) {
