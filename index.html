@@ -20,61 +20,37 @@
             position: relative; background: #121212;
         }
 
-        /* Fixed Player View */
         .immersive-player {
-            position: fixed;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
-            max-width: 450px;
-            height: 100%;
-            background: #121212;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
+            position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 450px; height: 100%;
+            background: #121212; z-index: 100;
+            display: flex; flex-direction: column;
             transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
         }
 
-        /* Image Container */
-        .artwork-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 70%; /* Takes up most of the screen */
-            z-index: 1;
-        }
-
-        .artwork-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        /* The Spotify Fade */
+        .artwork-container { position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1; }
+        .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
+        
         .artwork-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, 
-                rgba(18,18,18,0) 0%, 
-                rgba(18,18,18,0.3) 40%, 
-                rgba(18,18,18,0.8) 70%, 
-                #121212 100%);
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.4) 40%, #121212 90%);
             z-index: 2;
         }
 
-        /* UI Content */
-        .player-controls {
-            position: relative;
-            z-index: 10;
-            margin-top: auto;
-            padding: 40px 30px;
+        .player-controls { position: relative; z-index: 10; margin-top: auto; padding: 20px 30px 60px; }
+
+        /* Spotify-style Progress Bar */
+        input[type="range"] {
+            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1);
+            height: 4px; border-radius: 2px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px;
+            background: #fff; border-radius: 50%; cursor: pointer;
         }
 
         .song-card { background: #1c1c1c; border-radius: 8px; padding: 10px; }
-        #yt-hidden { position: absolute; visibility: hidden; pointer-events: none; }
+        #yt-hidden { position: absolute; top: -9999px; left: -9999px; visibility: hidden; }
     </style>
 </head>
 <body>
@@ -82,15 +58,13 @@
 <div x-data="audifyApp()" x-init="initApp()">
     <div class="app-shell">
         
-        <!-- Search/List -->
+        <!-- List View -->
         <div class="h-full flex flex-col" x-show="!playerOpen">
-            <header class="p-6">
-                <h1 class="text-2xl font-black mb-4">Audify</h1>
+            <header class="p-6"><h1 class="text-2xl font-black mb-4">Audify</h1>
                 <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
                        placeholder="Search songs..." 
                        class="w-full bg-zinc-800 rounded-lg py-3 px-5 outline-none border border-white/5">
             </header>
-
             <main class="flex-grow overflow-y-auto px-4 pb-10">
                 <div class="grid grid-cols-2 gap-4">
                     <template x-for="song in songs" :key="song.id">
@@ -104,36 +78,39 @@
             </main>
         </div>
 
-        <!-- THE PLAYER -->
+        <!-- PLAYER -->
         <div class="immersive-player" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
-            
-            <!-- Artwork Section -->
             <div class="artwork-container" x-show="activeTrack">
                 <img :src="activeTrack?.thumbnail" id="main-thumb">
                 <div class="artwork-overlay"></div>
             </div>
 
-            <!-- Top Icons -->
             <div class="relative z-20 flex justify-between p-6">
                 <button @click="playerOpen = false"><i class="fa-solid fa-chevron-down text-xl"></i></button>
                 <i class="fa-solid fa-ellipsis-vertical text-xl opacity-50"></i>
             </div>
 
-            <!-- Player Content -->
             <div class="player-controls">
-                <div class="mb-10">
+                <div class="mb-6">
                     <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
                     <p class="text-xl text-zinc-400 font-bold" x-text="activeTrack?.artist"></p>
+                </div>
+
+                <!-- Length Bar -->
+                <div class="mb-8">
+                    <input type="range" min="0" :max="duration" x-model="currentTime" @input="seekMusic" class="mb-2">
+                    <div class="flex justify-between text-[10px] font-bold text-zinc-500">
+                        <span x-text="formatTime(currentTime)">0:00</span>
+                        <span x-text="formatTime(duration)">0:00</span>
+                    </div>
                 </div>
 
                 <div class="flex justify-between items-center">
                     <i class="fa-solid fa-shuffle text-xl opacity-40"></i>
                     <i class="fa-solid fa-backward-step text-3xl"></i>
-                    
                     <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
                         <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                     </button>
-                    
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                     <i class="fa-solid fa-repeat text-xl opacity-40"></i>
                 </div>
@@ -141,18 +118,32 @@
         </div>
 
         <div id="yt-hidden">
-            <iframe id="yt-iframe" src="" allow="autoplay"></iframe>
+            <div id="youtube-player"></div>
         </div>
     </div>
 </div>
 
 <script>
+    var player;
+    function onYouTubeIframeAPIReady() {
+        // This is called by the YouTube SDK automatically
+    }
+
     function audifyApp() {
         return {
             songs: [], searchQuery: '', activeTrack: null,
             playerOpen: false, isPlaying: false,
+            currentTime: 0, duration: 0,
+            timer: null,
 
-            initApp() { this.fetchData('top tracks'); },
+            initApp() {
+                this.fetchData('top tracks');
+                // Load YouTube SDK
+                let tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                let firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            },
 
             async fetchData(q) {
                 const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
@@ -164,21 +155,51 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
                 
-                // Force image update for the player
-                const thumb = document.getElementById('main-thumb');
-                if(thumb) thumb.src = song.thumbnail;
+                if (player) {
+                    player.loadVideoById(song.id);
+                } else {
+                    player = new YT.Player('youtube-player', {
+                        height: '1', width: '1',
+                        videoId: song.id,
+                        playerVars: { 'autoplay': 1, 'controls': 0 },
+                        events: { 'onStateChange': (e) => this.onPlayerStateChange(e) }
+                    });
+                }
+                this.startTimer();
+            },
 
-                const iframe = document.getElementById('yt-iframe');
-                iframe.src = `https://www.youtube.com/embed/${song.id}?autoplay=1&enablejsapi=1`;
+            onPlayerStateChange(event) {
+                if (event.data == YT.PlayerState.PLAYING) {
+                    this.duration = Math.floor(player.getDuration());
+                }
+            },
+
+            startTimer() {
+                if (this.timer) clearInterval(this.timer);
+                this.timer = setInterval(() => {
+                    if (player && this.isPlaying) {
+                        this.currentTime = Math.floor(player.getCurrentTime());
+                    }
+                }, 1000);
+            },
+
+            seekMusic() {
+                if (player) {
+                    player.seekTo(this.currentTime, true);
+                }
             },
 
             togglePlay() {
-                const iframe = document.getElementById('yt-iframe');
+                if (!player) return;
                 this.isPlaying = !this.isPlaying;
-                const command = this.isPlaying ? 'playVideo' : 'pauseVideo';
-                iframe.contentWindow.postMessage(JSON.stringify({
-                    "event": "command", "func": command, "args": ""
-                }), "*");
+                this.isPlaying ? player.playVideo() : player.pauseVideo();
+            },
+
+            formatTime(seconds) {
+                if (!seconds) return '0:00';
+                let mins = Math.floor(seconds / 60);
+                let secs = Math.floor(seconds % 60);
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
             }
         }
     }
