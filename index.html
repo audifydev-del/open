@@ -39,7 +39,7 @@
         .artwork-container { 
             position: relative; width: 100%; height: 50vh; min-height: 350px; shrink: 0;
         }
-        .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
+        .artwork-container img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.5s ease; }
         
         .artwork-overlay { 
             position: absolute; inset: 0; 
@@ -48,20 +48,18 @@
 
         .player-content { padding: 0 30px 40px; }
 
-        /* FULL SCREEN LYRICS OVERLAY */
         .lyrics-section {
             width: 100%;
-            height: 100vh; /* Cover whole screen */
+            height: 100vh;
             display: flex;
             flex-direction: column;
             position: relative;
-            background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.2));
         }
 
         .lyrics-scroll-box {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 45vh 30px; /* Large padding to ensure lines center on screen */
+            padding: 45vh 30px;
             scrollbar-width: none;
             mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
@@ -69,19 +67,17 @@
         .lyrics-scroll-box::-webkit-scrollbar { display: none; }
 
         .lyric-line {
-            font-size: 2rem;
-            line-height: 1.2;
+            font-size: 2.2rem;
+            line-height: 1.1;
             font-weight: 900;
             margin-bottom: 40px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             color: rgba(255, 255, 255, 0.1);
-            filter: blur(1px);
         }
         .lyric-line.active { 
             color: #fff; 
-            transform: scale(1.1); 
-            filter: blur(0px);
-            text-shadow: 0 0 30px rgba(255,255,255,0.2);
+            transform: scale(1.05); 
+            text-shadow: 0 0 40px rgba(255,255,255,0.3);
         }
 
         input[type="range"].progress-bar { 
@@ -95,7 +91,7 @@
         .lyrics-modal {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #1a1a1a; border-radius: 30px 30px 0 0;
-            padding: 30px; z-index: 300;
+            padding: 30px; z-index: 400;
             max-height: 60vh; overflow-y: auto;
         }
 
@@ -113,14 +109,15 @@
         <header class="p-6 text-white">
             <h1 class="text-4xl font-black mb-4 tracking-tighter">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                   placeholder="Search..." class="w-full bg-white/10 rounded-2xl py-4 px-6 outline-none">
+                   placeholder="Search artist or song..." class="w-full bg-white/10 rounded-2xl py-4 px-6 outline-none">
         </header>
         <main class="flex-grow overflow-y-auto px-4 pb-24">
             <div class="grid grid-cols-2 gap-4">
                 <template x-for="song in songs" :key="song.id">
-                    <div class="bg-white/5 p-3 rounded-2xl" @click="playSong(song)">
+                    <div class="bg-white/5 p-3 rounded-2xl cursor-pointer" @click="playSong(song)">
                         <img :src="song.thumbnail" class="w-full aspect-square rounded-xl object-cover mb-2">
                         <p class="text-sm font-bold truncate text-white" x-text="song.title"></p>
+                        <p class="text-[10px] text-white/40 truncate" x-text="song.artist"></p>
                     </div>
                 </template>
             </div>
@@ -129,16 +126,16 @@
 
     <!-- PLAYER PAGE -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
-        <!-- Top Half: Artwork & Controls -->
         <div class="artwork-container">
-            <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
+            <!-- Thumbnail remains stable until HQ one is ready -->
+            <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArtwork">
             <div class="artwork-overlay"></div>
             <button @click="playerOpen = false" class="absolute top-10 left-6 z-30 p-2 text-white opacity-40"><i class="fa-solid fa-chevron-down text-xl"></i></button>
         </div>
 
         <div class="player-content text-white">
             <div class="mb-8 flex justify-between items-end">
-                <div>
+                <div class="overflow-hidden">
                     <h2 class="text-3xl font-black truncate w-64" x-text="activeTrack?.title"></h2>
                     <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
                 </div>
@@ -167,8 +164,8 @@
         <!-- FULL SCREEN LYRICS SECTION -->
         <div class="lyrics-section">
             <div class="flex justify-between items-center px-8 py-4">
-                <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Lyrics</p>
-                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50" x-show="lyricsVersions.length > 0">Version Selector</button>
+                <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Syncing Lyrics</p>
+                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50" x-show="lyricsVersions.length > 0">Versions</button>
             </div>
 
             <div class="lyrics-scroll-box" id="lyricsScrollBox">
@@ -178,21 +175,21 @@
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
-                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center py-20" x-text="lyricsStatus"></div>
+                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center py-20 px-10" x-text="lyricsStatus"></div>
             </div>
         </div>
     </div>
 
     <!-- VERSION SELECTOR MODAL -->
-    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/80 z-[400] flex items-end">
+    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/80 z-[500] flex items-end">
         <div class="lyrics-modal w-full">
-            <h3 class="text-white font-black text-xl mb-6">Match Lyrics by Length</h3>
+            <h3 class="text-white font-black text-xl mb-6">Select Best Match</h3>
             <div class="space-y-4">
                 <template x-for="item in lyricsVersions" :key="item.id">
                     <div @click="selectLyrics(item)" class="p-5 rounded-2xl flex justify-between items-center cursor-pointer" :class="selectedLyricsId === item.id ? 'bg-white/20 border border-white/30' : 'bg-white/5'">
                         <div>
                             <p class="text-white font-bold" x-text="item.trackName"></p>
-                            <p class="text-white/40 text-xs mt-1" x-text="'Duration: ' + formatTime(item.duration)"></p>
+                            <p class="text-white/40 text-xs mt-1" x-text="'Length: ' + formatTime(item.duration)"></p>
                         </div>
                         <i x-show="selectedLyricsId === item.id" class="fa-solid fa-check-circle text-white"></i>
                     </div>
@@ -213,10 +210,10 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
-            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, lyricsStatus: 'Fetching...',
+            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, lyricsStatus: 'Waiting for song...',
 
             initApp() {
-                this.fetchData('Latest Music');
+                this.fetchData('Trending Music');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -243,30 +240,36 @@
                 }
             },
             async playSong(song) {
-                this.activeTrack = song;
+                // Keep the search-result thumbnail until HQ replaces it
+                this.activeTrack = JSON.parse(JSON.stringify(song)); 
                 this.playerOpen = true;
                 this.isPlaying = true;
                 this.parsedLyrics = [];
                 this.lyricsVersions = [];
                 this.lastIndex = -1;
-                this.lyricsStatus = 'Searching for sync...';
+                this.lyricsStatus = 'Syncing...';
+                this.duration = 0;
 
-                // iTunes for Artwork
+                // Load HQ artwork silently
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
                 const onData = (e) => {
                     if (e.detail.results?.length > 0) {
-                        const imgUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
-                        this.activeTrack.thumbnail = imgUrl;
-                        const img = new Image(); img.crossOrigin = "anonymous"; img.src = imgUrl;
-                        img.onload = () => this.updateTheme(img);
+                        const hqUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
+                        const tempImg = new Image();
+                        tempImg.crossOrigin = "anonymous";
+                        tempImg.src = hqUrl;
+                        tempImg.onload = () => {
+                            this.activeTrack.thumbnail = hqUrl; // Only swap when HQ is ready
+                            this.updateTheme(tempImg);
+                        };
                     }
                     window.removeEventListener('itunes-data', onData);
                 };
                 window.addEventListener('itunes-data', onData);
                 document.body.appendChild(script);
 
-                // Youtube Setup
+                // Initialize YouTube and fetch lyrics when duration is known
                 if (player && player.loadVideoById) {
                     player.loadVideoById(song.id);
                 } else {
@@ -276,7 +279,8 @@
                             'onStateChange': (e) => { 
                                 if(e.data == 1) {
                                     this.duration = Math.floor(player.getDuration());
-                                    this.getLyricsList(song.artist, song.title);
+                                    // Delay to ensure duration is locked
+                                    setTimeout(() => this.getLyricsList(this.activeTrack.artist, this.activeTrack.title), 500);
                                 }
                             } 
                         }
@@ -284,26 +288,36 @@
                 }
 
                 if(!this.intv) {
-                    setInterval(() => { if(player && this.isPlaying) this.currentTime = player.getCurrentTime(); }, 250);
+                    setInterval(() => { 
+                        if(player && this.isPlaying) {
+                            this.currentTime = player.getCurrentTime();
+                            // Fallback fetch if duration was 0 initially
+                            if(this.duration === 0 && player.getDuration() > 0) {
+                                this.duration = Math.floor(player.getDuration());
+                                this.getLyricsList(this.activeTrack.artist, this.activeTrack.title);
+                            }
+                        } 
+                    }, 500);
                     this.intv = true;
                 }
             },
             async getLyricsList(artist, title) {
+                if(this.lyricsVersions.length > 0) return; // Already fetching/fetched
+                
                 try {
                     const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
                     const data = await res.json();
-                    this.lyricsVersions = data.filter(l => l.syncedLyrics);
+                    this.lyricsVersions = data.filter(l => l.syncedLyrics && l.syncedLyrics.length > 5);
                     
                     if(this.lyricsVersions.length > 0) {
-                        // Closest length logic
                         let closest = this.lyricsVersions.reduce((prev, curr) => {
                             return (Math.abs(curr.duration - this.duration) < Math.abs(prev.duration - this.duration) ? curr : prev);
                         });
                         this.selectLyrics(closest);
                     } else {
-                        this.lyricsStatus = 'No synced lyrics found.';
+                        this.lyricsStatus = 'Lyrics not available for this song.';
                     }
-                } catch (e) { this.lyricsStatus = 'Lyrics search failed.'; }
+                } catch (e) { this.lyricsStatus = 'Connection error. Try again.'; }
             },
             selectLyrics(version) {
                 this.selectedLyricsId = version.id;
@@ -326,11 +340,10 @@
                 const color = `rgb(${Math.max(15, (r/count)-45)}, ${Math.max(15, (g/count)-45)}, ${Math.max(15, (b/count)-45)})`;
                 document.documentElement.style.setProperty('--theme-color', color);
                 document.getElementById('appShell').style.backgroundColor = color;
-                document.querySelectorAll('.immersive-player').forEach(el => el.style.backgroundColor = color);
             },
             togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
             seekMusic() { player.seekTo(this.currentTime, true); },
-            formatTime(s) { if(!s) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+            formatTime(s) { if(!s || s < 0) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
 </script>
