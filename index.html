@@ -45,7 +45,6 @@
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Smooth gradient into the theme color */
         .artwork-overlay { 
             position: absolute; inset: 0; 
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 50%, var(--theme-color) 100%); 
@@ -58,11 +57,11 @@
         }
 
         input[type="range"].progress-bar { 
-            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); 
-            height: 4px; border-radius: 2px; outline: none;
+            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.15); 
+            height: 4px; border-radius: 4px; outline: none;
         }
         input[type="range"].progress-bar::-webkit-slider-thumb { 
-            -webkit-appearance: none; height: 12px; width: 12px; background: #fff; border-radius: 50%; 
+            -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
         }
 
         .song-card { background: #0a0a0a; border-radius: 12px; padding: 10px; border: 1px solid #1a1a1a; }
@@ -75,12 +74,12 @@
 <div x-data="audifyApp()" x-init="initApp()" class="app-shell">
     <canvas id="colorCanvas"></canvas>
     
-    <!-- HOME PAGE -->
+    <!-- HOME PAGE LAYER -->
     <div class="home-page">
         <header class="p-6 shrink-0">
             <h1 class="text-3xl font-black mb-4 tracking-tighter text-white">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                   placeholder="Search..." 
+                   placeholder="Search artist or song..." 
                    class="w-full bg-zinc-900 rounded-xl py-3 px-5 text-white outline-none">
         </header>
 
@@ -97,12 +96,11 @@
         </main>
     </div>
 
-    <!-- PLAYER -->
+    <!-- PLAYER LAYER -->
     <div class="immersive-player" 
          :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         
         <div class="artwork-container">
-            <!-- Ensure img has ID for JS access -->
             <img :src="activeTrack?.thumbnail" id="main-thumb" crossorigin="anonymous">
             <div class="artwork-overlay"></div>
         </div>
@@ -114,7 +112,7 @@
 
         <div class="player-content text-white">
             <div class="mb-10">
-                <h2 class="text-2xl font-black truncate" x-text="activeTrack?.title"></h2>
+                <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
                 <p class="text-lg text-white/60 font-bold" x-text="activeTrack?.artist"></p>
             </div>
 
@@ -147,7 +145,7 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0,
             initApp() {
-                this.fetchData('chill hits');
+                this.fetchData('hits 2026');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -156,23 +154,34 @@
                 const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
                 this.songs = await res.json();
             },
-            playSong(song) {
+            async playSong(song) {
                 this.activeTrack = song;
                 this.playerOpen = true;
                 this.isPlaying = true;
 
-                // Color extraction with Google Proxy
-                const proxyUrl = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(song.thumbnail)}`;
+                // 1. Fetch High-Res Artwork from Deezer
+                const deezerSearch = `https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/search?q=' + song.artist + ' ' + song.title)}`;
                 
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.src = proxyUrl;
-                
-                // Force color update on load
-                img.onload = () => {
-                    this.updateTheme(img);
-                };
+                try {
+                    const response = await fetch(deezerSearch);
+                    const data = await response.json();
+                    const result = JSON.parse(data.contents);
+                    
+                    if (result.data && result.data.length > 0) {
+                        const highResCover = result.data[0].album.cover_xl;
+                        this.activeTrack.thumbnail = highResCover;
 
+                        // 2. Extract Color from Deezer Thumb
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.src = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(highResCover)}`;
+                        img.onload = () => this.updateTheme(img);
+                    }
+                } catch (e) {
+                    console.log("Deezer fetch failed, using fallback thumb");
+                }
+
+                // YouTube Playback
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById(song.id);
                 } else {
@@ -181,25 +190,38 @@
                         events: { 'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } }
                     });
                 }
-                setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
+                
+                if(!this.intervalSet) {
+                    setInterval(() => { 
+                        if(player && this.isPlaying && player.getCurrentTime) 
+                            this.currentTime = Math.floor(player.getCurrentTime()); 
+                    }, 1000);
+                    this.intervalSet = true;
+                }
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
                 const ctx = canvas.getContext('2d');
                 canvas.width = 10; canvas.height = 10;
                 ctx.drawImage(img, 0, 0, 10, 10);
-                const data = ctx.getImageData(0, 0, 10, 10).data;
+                const pixels = ctx.getImageData(0, 0, 10, 10).data;
                 
                 let r=0, g=0, b=0;
-                for (let i=0; i<data.length; i+=4) { r += data[i]; g += data[i+1]; b += data[i+2]; }
-                r = Math.floor(r/25); g = Math.floor(g/25); b = Math.floor(b/25);
+                for (let i=0; i<pixels.length; i+=4) {
+                    r += pixels[i]; g += pixels[i+1]; b += pixels[i+2];
+                }
+                const count = pixels.length / 4;
+                r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
                 
-                // Set the theme color directly
-                const finalRgb = `rgb(${Math.max(15, r-25)}, ${Math.max(15, g-25)}, ${Math.max(15, b-25)})`;
-                document.documentElement.style.setProperty('--theme-color', finalRgb);
+                const finalColor = `rgb(${Math.max(10, r-35)}, ${Math.max(10, g-35)}, ${Math.max(10, b-35)})`;
+                document.documentElement.style.setProperty('--theme-color', finalColor);
             },
-            seekMusic() { player.seekTo(this.currentTime, true); },
-            togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
+            seekMusic() { if(player) player.seekTo(this.currentTime, true); },
+            togglePlay() { 
+                if(!player) return;
+                this.isPlaying = !this.isPlaying; 
+                this.isPlaying ? player.playVideo() : player.pauseVideo(); 
+            },
             formatTime(s) { if(!s) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
