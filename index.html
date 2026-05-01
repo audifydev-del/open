@@ -12,32 +12,27 @@
     <style>
         [x-cloak] { display: none !important; }
         :root { --app-height: 100dvh; }
-
         body { 
             background-color: #000; color: white; overflow: hidden; margin: 0;
             height: var(--app-height); width: 100vw; touch-action: manipulation;
             font-family: 'Inter', sans-serif;
         }
-
         .app-shell {
             width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto;
             position: relative; background-color: #121212; display: flex;
             flex-direction: column; padding-top: env(safe-area-inset-top);
         }
-
         .dynamic-bg {
             position: absolute; inset: 0; z-index: -1;
             filter: blur(80px) brightness(0.3);
             transform: scale(1.2); transition: background-image 0.8s ease-in-out;
             background-size: cover; background-position: center;
         }
-
         .spotify-gradient {
             position: absolute; inset: 0;
             background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, #121212 100%);
             z-index: 0;
         }
-
         .progress-container { 
             height: 30px; display: flex; align-items: center; 
             cursor: pointer; width: 100%; touch-action: none; position: relative;
@@ -51,7 +46,6 @@
             opacity: 0; transition: opacity 0.2s;
         }
         .progress-container:hover .progress-knob { opacity: 1; }
-
         .btn-active:active { transform: scale(0.96); opacity: 0.8; }
     </style>
 </head>
@@ -66,25 +60,28 @@
 
         <div class="app-shell" x-show="!showSplash" x-cloak>
             
-            <!-- Home / Library -->
+            <!-- Library -->
             <main class="flex-grow overflow-y-auto px-5 pt-8 pb-44" x-show="currentTab === 'home'">
                 <div class="flex items-center justify-between mb-8">
-                    <h1 class="text-3xl font-black tracking-tight">Library</h1>
+                    <h1 class="text-3xl font-black tracking-tight">Audify</h1>
                     <img src="assets/ic.png" class="w-14 h-14 object-contain">
+                </div>
+
+                <!-- Search Input -->
+                <div class="mb-6">
+                    <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)"
+                           placeholder="Search artists or songs..."
+                           class="w-full bg-zinc-800 border-none rounded-full py-3 px-6 text-sm focus:ring-2 focus:ring-[#1DB954] outline-none">
                 </div>
 
                 <div class="flex flex-col gap-5">
                     <template x-for="song in songs" :key="song.id">
                         <div class="flex items-center gap-4 btn-active" @click="playSong(song)">
                             <div class="w-14 h-14 flex-shrink-0 relative bg-zinc-800 rounded shadow-lg overflow-hidden">
-                                <template x-if="song.thumbnail">
-                                    <img :src="song.thumbnail" class="w-full h-full object-cover">
-                                </template>
-                                <template x-if="!song.thumbnail">
-                                    <div class="w-full h-full flex items-center justify-center">
-                                        <i class="fa-solid fa-music text-white/10"></i>
-                                    </div>
-                                </template>
+                                <img :src="song.thumbnail" class="w-full h-full object-cover" x-show="song.thumbnail">
+                                <div class="w-full h-full flex items-center justify-center" x-show="!song.thumbnail">
+                                    <i class="fa-solid fa-music text-white/10"></i>
+                                </div>
                             </div>
                             <div class="flex-grow overflow-hidden text-left">
                                 <p class="text-sm font-bold truncate" x-text="song.title"></p>
@@ -98,7 +95,7 @@
             <!-- Mini Player -->
             <div x-show="activeTrack && !playerOpen" @click="playerOpen = true" 
                  class="absolute bottom-[20px] left-2 right-2 bg-[#282828] h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
-                <img :src="activeTrack?.thumbnail" class="w-10 h-10 rounded object-cover shadow-lg" x-show="activeTrack?.thumbnail">
+                <img :src="activeTrack?.thumbnail" class="w-10 h-10 rounded object-cover" x-show="activeTrack?.thumbnail">
                 <div class="flex-grow overflow-hidden text-left">
                     <p class="text-[11px] font-bold truncate" x-text="activeTrack?.title"></p>
                     <p class="text-[10px] text-zinc-400 truncate font-medium" x-text="activeTrack?.artist"></p>
@@ -108,8 +105,8 @@
                 </button>
             </div>
 
-            <!-- Full Player Page -->
-            <div x-show="playerOpen" x-transition:enter="transition duration-500 ease-[cubic-bezier(0.3,0,0,1)] transform" x-transition:enter-start="translate-y-full"
+            <!-- Full Player -->
+            <div x-show="playerOpen" x-transition:enter="transition duration-500 transform" x-transition:enter-start="translate-y-full"
                  class="absolute inset-0 bg-[#121212] z-50 flex flex-col p-8">
                 
                 <div class="dynamic-bg" :style="`background-image: url(${activeTrack?.thumbnail})`"></div>
@@ -117,16 +114,13 @@
 
                 <header class="flex justify-between items-center z-10 mb-8">
                     <i class="fa-solid fa-chevron-down text-xl" @click="playerOpen = false"></i>
-                    <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Audify Player</p>
+                    <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Now Playing</p>
                     <i class="fa-solid fa-ellipsis-vertical text-xl opacity-60"></i>
                 </header>
 
                 <div class="flex-grow flex flex-col justify-center z-10">
                     <div class="w-full aspect-square mb-12 shadow-2xl rounded-lg overflow-hidden bg-zinc-900">
-                         <img :src="activeTrack?.thumbnail" class="w-full h-full object-cover" x-show="activeTrack?.thumbnail">
-                         <div class="w-full h-full flex items-center justify-center" x-show="!activeTrack?.thumbnail">
-                            <img src="assets/ic.png" class="w-24 h-24 opacity-20">
-                         </div>
+                         <img :src="activeTrack?.thumbnail" class="w-full h-full object-cover">
                     </div>
 
                     <div class="text-left mb-6">
@@ -136,15 +130,15 @@
 
                     <!-- Progress Bar -->
                     <div class="mb-8">
-                        <div class="progress-container" @click="handleSeek($event)" @touchstart="handleDrag($event)" @touchmove="handleDrag($event)">
+                        <div class="progress-container" @click="handleSeek($event)">
                             <div class="progress-rail">
                                 <div class="progress-fill" :style="`width: ${progress}%`"></div>
                                 <div class="progress-knob" :style="`left: ${progress}%`"></div>
                             </div>
                         </div>
                         <div class="flex justify-between mt-[-4px]">
-                            <span class="text-[10px] text-white/40 font-bold" x-text="currentTimeStr">0:00</span>
-                            <span class="text-[10px] text-white/40 font-bold" x-text="durationStr">0:00</span>
+                            <span class="text-[10px] text-white/40 font-bold" x-text="currentTimeStr"></span>
+                            <span class="text-[10px] text-white/40 font-bold" x-text="durationStr"></span>
                         </div>
                     </div>
 
@@ -152,7 +146,7 @@
                     <div class="flex justify-between items-center mb-8">
                         <i class="fa-solid fa-shuffle text-xl opacity-40"></i>
                         <i class="fa-solid fa-backward-step text-3xl"></i>
-                        <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active shadow-xl">
+                        <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active">
                             <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                         </button>
                         <i class="fa-solid fa-forward-step text-3xl"></i>
@@ -161,8 +155,7 @@
                 </div>
             </div>
 
-            <!-- Hidden Audio Element -->
-            <audio id="mainAudio" preload="auto"></audio>
+            <audio id="mainAudio"></audio>
         </div>
     </div>
 
@@ -173,6 +166,7 @@
                 currentTab: 'home',
                 playerOpen: false,
                 isPlaying: false,
+                searchQuery: '',
                 songs: [],
                 activeTrack: null,
                 progress: 0,
@@ -180,9 +174,8 @@
                 durationStr: '0:00',
 
                 initApp() {
-                    this.fetchData();
+                    this.fetchData('trending');
                     const audio = document.getElementById('mainAudio');
-                    
                     audio.ontimeupdate = () => {
                         if (audio.duration) {
                             this.progress = (audio.currentTime / audio.duration) * 100;
@@ -190,81 +183,48 @@
                             this.durationStr = this.formatTime(audio.duration);
                         }
                     };
-
                     audio.onplay = () => this.isPlaying = true;
                     audio.onpause = () => this.isPlaying = false;
-                    
-                    // Hide splash after 2 seconds
                     setTimeout(() => { this.showSplash = false; }, 2000);
                 },
 
-                async fetchData() {
+                async fetchData(query) {
                     try {
-                        // Fetch trending songs from our Flask backend
-                        const response = await fetch('/search?q=trending');
+                        const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
                         this.songs = await response.json();
-                        if (this.songs.length > 0) {
-                            this.activeTrack = this.songs[0];
-                        }
-                    } catch (e) { 
-                        console.error("Backend fetch failed:", e); 
-                    }
-                },
-
-                formatTime(secs) {
-                    if (isNaN(secs)) return '0:00';
-                    let min = Math.floor(secs / 60);
-                    let sec = Math.floor(secs % 60);
-                    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-                },
-
-                handleSeek(e) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = (e.clientX || e.pageX) - rect.left;
-                    this.calculateSeek(x, rect.width);
-                },
-
-                handleDrag(e) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.touches[0].clientX - rect.left;
-                    this.calculateSeek(x, rect.width);
-                },
-
-                calculateSeek(x, width) {
-                    const audio = document.getElementById('mainAudio');
-                    if (!audio.duration) return;
-                    let percent = Math.min(Math.max(x / width, 0), 1);
-                    audio.currentTime = percent * audio.duration;
+                    } catch (e) { console.error("Search failed"); }
                 },
 
                 async playSong(song) {
                     const audio = document.getElementById('mainAudio');
-                    
-                    // If it's a new song, fetch the stream URL
                     if (this.activeTrack?.id !== song.id) {
                         this.activeTrack = song;
-                        try {
-                            const res = await fetch(`/stream?id=${song.id}`);
-                            const data = await res.json();
-                            audio.src = data.url;
-                            audio.load();
-                        } catch (e) {
-                            console.error("Streaming error:", e);
-                            return;
-                        }
+                        const res = await fetch(`/stream?id=${song.id}`);
+                        const data = await res.json();
+                        audio.src = data.url;
+                        audio.load();
                     }
-                    
                     this.playerOpen = true;
                     this.togglePlay(true);
                 },
 
-                togglePlay(forcePlay = null) {
+                togglePlay(force = null) {
                     const audio = document.getElementById('mainAudio');
-                    if (forcePlay === true) { 
-                        audio.play().catch(e => console.log("Interaction required")); 
-                        return; 
-                    }
-                    audio.paused ? audio.play().catch(e => {}) : audio.pause();
+                    if (force === true) { audio.play(); return; }
+                    audio.paused ? audio.play() : audio.pause();
+                },
+
+                handleSeek(e) {
+                    const audio = document.getElementById('mainAudio');
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    audio.currentTime = percent * audio.duration;
+                },
+
+                formatTime(secs) {
+                    let min = Math.floor(secs / 60);
+                    let sec = Math.floor(secs % 60);
+                    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
                 }
             }
         }
