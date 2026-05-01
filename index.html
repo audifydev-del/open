@@ -8,132 +8,135 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- YouTube IFrame API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         [x-cloak] { display: none !important; }
-        body { background-color: #000; color: white; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
-        .app-shell { width: 100%; max-width: 450px; height: 100dvh; margin: 0 auto; position: relative; background-color: #121212; display: flex; flex-direction: column; }
+        body { background-color: #000; color: white; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; height: 100dvh; }
+        .app-shell { width: 100%; max-width: 450px; height: 100%; margin: 0 auto; position: relative; background-color: #121212; display: flex; flex-direction: column; }
         .dynamic-bg { position: absolute; inset: 0; z-index: -1; filter: blur(80px) brightness(0.3); transform: scale(1.2); transition: background-image 0.8s; background-size: cover; background-position: center; }
-        .progress-rail { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; width: 100%; position: relative; }
-        .progress-fill { height: 100%; background: #1DB954; border-radius: 2px; position: absolute; }
-        #yt-player { position: absolute; top: -9999px; left: -9999px; visibility: hidden; }
+        /* This hides the actual video but keeps the audio playing */
+        #player-container { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     </style>
 </head>
 <body>
 
 <div x-data="audifyApp()" x-init="initApp()">
     <div class="app-shell">
-        <!-- Main Library -->
+        
+        <!-- Library View -->
         <main class="flex-grow overflow-y-auto px-5 pt-8 pb-32" x-show="!playerOpen">
-            <h1 class="text-3xl font-black mb-6">Audify</h1>
-            <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" placeholder="Search..." class="w-full bg-zinc-800 rounded-full py-3 px-6 mb-6 outline-none text-sm">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-black">Audify</h1>
+                <i class="fa-solid fa-circle-user text-2xl opacity-50"></i>
+            </div>
             
-            <div class="flex flex-col gap-5">
+            <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
+                   placeholder="Search songs..." 
+                   class="w-full bg-zinc-800 rounded-xl py-3 px-6 mb-6 outline-none text-sm border border-white/5 focus:border-[#1DB954]">
+            
+            <div class="flex flex-col gap-4">
                 <template x-for="song in songs" :key="song.id">
-                    <div class="flex items-center gap-4 cursor-pointer" @click="playSong(song)">
-                        <img :src="song.thumbnail" class="w-14 h-14 rounded bg-zinc-800 object-cover">
+                    <div class="flex items-center gap-4 cursor-pointer active:scale-95 transition-transform" @click="playSong(song)">
+                        <img :src="song.thumbnail" class="w-14 h-14 rounded-lg bg-zinc-800 object-cover shadow-lg">
                         <div class="flex-grow overflow-hidden">
                             <p class="text-sm font-bold truncate" x-text="song.title"></p>
-                            <p class="text-xs text-zinc-400" x-text="song.artist"></p>
+                            <p class="text-xs text-zinc-400 font-medium" x-text="song.artist"></p>
                         </div>
+                        <i class="fa-solid fa-play text-xs opacity-30"></i>
                     </div>
                 </template>
             </div>
         </main>
 
-        <!-- Player Page -->
-        <div x-show="playerOpen" x-cloak class="absolute inset-0 bg-[#121212] z-50 flex flex-col p-8">
+        <!-- Full Player View -->
+        <div x-show="playerOpen" x-cloak class="absolute inset-0 bg-[#121212] z-50 flex flex-col p-8 transition-all">
             <div class="dynamic-bg" :style="`background-image: url(${activeTrack?.thumbnail})`"></div>
+            
             <header class="flex justify-between items-center mb-8">
                 <i class="fa-solid fa-chevron-down text-xl" @click="playerOpen = false"></i>
-                <p class="text-[10px] font-bold uppercase tracking-widest">Playing from YouTube</p>
-                <div></div>
+                <p class="text-[10px] font-bold uppercase tracking-widest opacity-60">Streaming Audio</p>
+                <i class="fa-solid fa-ellipsis text-xl opacity-60"></i>
             </header>
 
             <div class="flex-grow flex flex-col justify-center">
-                <img :src="activeTrack?.thumbnail" class="w-full aspect-square rounded-lg shadow-2xl mb-12 object-cover">
-                <h2 class="text-2xl font-black truncate" x-text="activeTrack?.title"></h2>
-                <p class="text-lg text-white/50 mb-8" x-text="activeTrack?.artist"></p>
-
-                <div class="mb-8" @click="handleSeek($event)">
-                    <div class="progress-rail">
-                        <div class="progress-fill" :style="`width: ${progress}%`"></div>
-                    </div>
+                <div class="relative group mb-10">
+                    <img :src="activeTrack?.thumbnail" class="w-full aspect-square rounded-2xl shadow-2xl object-cover">
                 </div>
+                
+                <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
+                <p class="text-lg text-white/50 font-bold mb-10" x-text="activeTrack?.artist"></p>
 
-                <div class="flex justify-center items-center gap-10">
+                <!-- Controls -->
+                <div class="flex justify-around items-center">
+                    <i class="fa-solid fa-shuffle text-xl opacity-30"></i>
                     <i class="fa-solid fa-backward-step text-3xl"></i>
-                    <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center">
-                        <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                    
+                    <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+                        <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                     </button>
+                    
                     <i class="fa-solid fa-forward-step text-3xl"></i>
+                    <i class="fa-solid fa-repeat text-xl opacity-30"></i>
                 </div>
             </div>
         </div>
 
-        <!-- Hidden YouTube Container -->
-        <div id="yt-player"></div>
+        <!-- Hidden IFrame Player -->
+        <div id="player-container">
+            <iframe id="yt-iframe" 
+                    width="100" height="100" 
+                    src="" 
+                    frameborder="0" 
+                    allow="autoplay">
+            </iframe>
+        </div>
     </div>
 </div>
 
 <script>
-    let player;
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('yt-player', {
-            height: '0', width: '0',
-            playerVars: { 'autoplay': 0, 'controls': 0 },
-            events: {
-                'onStateChange': (event) => {
-                    window.dispatchEvent(new CustomEvent('yt-state-change', { detail: event.data }));
-                }
-            }
-        });
-    }
-
     function audifyApp() {
         return {
-            songs: [], searchQuery: '', activeTrack: null,
-            playerOpen: false, isPlaying: false, progress: 0,
+            songs: [], 
+            searchQuery: '', 
+            activeTrack: null,
+            playerOpen: false, 
+            isPlaying: false,
 
             initApp() {
-                this.fetchData('trending');
-                setInterval(() => this.updateProgress(), 1000);
-                window.addEventListener('yt-state-change', (e) => {
-                    this.isPlaying = (e.detail === YT.PlayerState.PLAYING);
+                this.fetchData('trending hits');
+                // Listen for messages from the iframe (optional, for state)
+                window.addEventListener('message', (event) => {
+                    // This is where you'd handle autoplay finishing if needed
                 });
             },
 
             async fetchData(q) {
-                const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
-                this.songs = await res.json();
+                try {
+                    const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+                    this.songs = await res.json();
+                } catch (e) { console.error("Search failed"); }
             },
 
             playSong(song) {
                 this.activeTrack = song;
                 this.playerOpen = true;
-                player.loadVideoById(song.id);
-                player.playVideo();
+                this.isPlaying = true;
+                
+                // Construct the embed URL with autoplay enabled
+                const iframe = document.getElementById('yt-iframe');
+                iframe.src = `https://www.youtube.com/embed/${song.id}?autoplay=1&enablejsapi=1`;
             },
 
             togglePlay() {
-                if (this.isPlaying) { player.pauseVideo(); } 
-                else { player.playVideo(); }
-            },
-
-            updateProgress() {
-                if (player && player.getDuration) {
-                    const duration = player.getDuration();
-                    if (duration > 0) {
-                        this.progress = (player.getCurrentTime() / duration) * 100;
-                    }
-                }
-            },
-
-            handleSeek(e) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                player.seekTo(percent * player.getDuration());
+                const iframe = document.getElementById('yt-iframe');
+                this.isPlaying = !this.isPlaying;
+                
+                // Use postMessage to talk to the YouTube embed without a heavy API
+                const command = this.isPlaying ? 'playVideo' : 'pauseVideo';
+                iframe.contentWindow.postMessage(JSON.stringify({
+                    "event": "command",
+                    "func": command,
+                    "args": ""
+                }), "*");
             }
         }
     }
