@@ -59,12 +59,14 @@
 
     <div x-data="audifyApp()" x-init="initApp()">
         
+        <!-- Splash Screen -->
         <div class="fixed inset-0 bg-black z-[100] flex items-center justify-center" x-show="showSplash" x-transition:leave="transition duration-500">
             <img src="assets/ic.png" class="w-48 h-48 animate-pulse object-contain">
         </div>
 
         <div class="app-shell" x-show="!showSplash" x-cloak>
             
+            <!-- Home / Library -->
             <main class="flex-grow overflow-y-auto px-5 pt-8 pb-44" x-show="currentTab === 'home'">
                 <div class="flex items-center justify-between mb-8">
                     <h1 class="text-3xl font-black tracking-tight">Library</h1>
@@ -72,7 +74,7 @@
                 </div>
 
                 <div class="flex flex-col gap-5">
-                    <template x-for="song in songs">
+                    <template x-for="song in songs" :key="song.id">
                         <div class="flex items-center gap-4 btn-active" @click="playSong(song)">
                             <div class="w-14 h-14 flex-shrink-0 relative bg-zinc-800 rounded shadow-lg overflow-hidden">
                                 <template x-if="song.thumbnail">
@@ -93,8 +95,9 @@
                 </div>
             </main>
 
+            <!-- Mini Player -->
             <div x-show="activeTrack && !playerOpen" @click="playerOpen = true" 
-                 class="absolute bottom-[95px] left-2 right-2 bg-[#282828] h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
+                 class="absolute bottom-[20px] left-2 right-2 bg-[#282828] h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
                 <img :src="activeTrack?.thumbnail" class="w-10 h-10 rounded object-cover shadow-lg" x-show="activeTrack?.thumbnail">
                 <div class="flex-grow overflow-hidden text-left">
                     <p class="text-[11px] font-bold truncate" x-text="activeTrack?.title"></p>
@@ -105,6 +108,7 @@
                 </button>
             </div>
 
+            <!-- Full Player Page -->
             <div x-show="playerOpen" x-transition:enter="transition duration-500 ease-[cubic-bezier(0.3,0,0,1)] transform" x-transition:enter-start="translate-y-full"
                  class="absolute inset-0 bg-[#121212] z-50 flex flex-col p-8">
                 
@@ -130,8 +134,9 @@
                         <p class="text-lg text-white/50 font-bold truncate" x-text="activeTrack?.artist"></p>
                     </div>
 
+                    <!-- Progress Bar -->
                     <div class="mb-8">
-                        <div class="progress-container" @mousedown="handleSeek($event)" @touchstart="handleDrag($event)" @touchmove="handleDrag($event)">
+                        <div class="progress-container" @click="handleSeek($event)" @touchstart="handleDrag($event)" @touchmove="handleDrag($event)">
                             <div class="progress-rail">
                                 <div class="progress-fill" :style="`width: ${progress}%`"></div>
                                 <div class="progress-knob" :style="`left: ${progress}%`"></div>
@@ -143,6 +148,7 @@
                         </div>
                     </div>
 
+                    <!-- Controls -->
                     <div class="flex justify-between items-center mb-8">
                         <i class="fa-solid fa-shuffle text-xl opacity-40"></i>
                         <i class="fa-solid fa-backward-step text-3xl"></i>
@@ -155,6 +161,7 @@
                 </div>
             </div>
 
+            <!-- Hidden Audio Element -->
             <audio id="mainAudio" preload="auto"></audio>
         </div>
     </div>
@@ -175,6 +182,7 @@
                 initApp() {
                     this.fetchData();
                     const audio = document.getElementById('mainAudio');
+                    
                     audio.ontimeupdate = () => {
                         if (audio.duration) {
                             this.progress = (audio.currentTime / audio.duration) * 100;
@@ -182,44 +190,25 @@
                             this.durationStr = this.formatTime(audio.duration);
                         }
                     };
+
                     audio.onplay = () => this.isPlaying = true;
                     audio.onpause = () => this.isPlaying = false;
+                    
+                    // Hide splash after 2 seconds
                     setTimeout(() => { this.showSplash = false; }, 2000);
                 },
 
                 async fetchData() {
                     try {
-                        const srvResp = await fetch('./serverlist.json');
-                        const servers = await srvResp.json();
-                        const listResp = await fetch('./list.json');
-                        const songStrings = await listResp.json();
-
-                        this.songs = songStrings.map(songStr => {
-                            const parts = songStr.split(' - ');
-                            return {
-                                title: parts[1]?.trim() || 'Track',
-                                artist: parts[0]?.trim() || 'Artist',
-                                thumbnail: null, 
-                                url: `${servers[0].url}/${songStr.trim()}.mp3`
-                            };
-                        });
-
-                        // Standard Apple iTunes Fetch
-                        this.songs.forEach(async (s, index) => {
-                            try {
-                                const term = encodeURIComponent(`${s.artist} ${s.title}`);
-                                const r = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`);
-                                const d = await r.json();
-                                if (d.results && d.results[0]) {
-                                    this.songs[index].thumbnail = d.results[0].artworkUrl100.replace('100x100bb', '800x800bb');
-                                }
-                            } catch(e) {
-                                console.warn("Apple fetch failed for:", s.title);
-                            }
-                        });
-
-                        this.activeTrack = this.songs[0];
-                    } catch (e) { console.error(e); }
+                        // Fetch trending songs from our Flask backend
+                        const response = await fetch('/search?q=trending');
+                        this.songs = await response.json();
+                        if (this.songs.length > 0) {
+                            this.activeTrack = this.songs[0];
+                        }
+                    } catch (e) { 
+                        console.error("Backend fetch failed:", e); 
+                    }
                 },
 
                 formatTime(secs) {
@@ -248,20 +237,33 @@
                     audio.currentTime = percent * audio.duration;
                 },
 
-                playSong(song) {
+                async playSong(song) {
                     const audio = document.getElementById('mainAudio');
-                    if (this.activeTrack?.url !== song.url) {
+                    
+                    // If it's a new song, fetch the stream URL
+                    if (this.activeTrack?.id !== song.id) {
                         this.activeTrack = song;
-                        audio.src = song.url;
-                        audio.load();
+                        try {
+                            const res = await fetch(`/stream?id=${song.id}`);
+                            const data = await res.json();
+                            audio.src = data.url;
+                            audio.load();
+                        } catch (e) {
+                            console.error("Streaming error:", e);
+                            return;
+                        }
                     }
+                    
                     this.playerOpen = true;
                     this.togglePlay(true);
                 },
 
                 togglePlay(forcePlay = null) {
                     const audio = document.getElementById('mainAudio');
-                    if (forcePlay === true) { audio.play().catch(e => {}); return; }
+                    if (forcePlay === true) { 
+                        audio.play().catch(e => console.log("Interaction required")); 
+                        return; 
+                    }
                     audio.paused ? audio.play().catch(e => {}) : audio.pause();
                 }
             }
