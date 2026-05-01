@@ -137,8 +137,8 @@
                             </div>
                         </div>
                         <div class="flex justify-between mt-[-4px]">
-                            <span class="text-[10px] text-white/40 font-bold" x-text="currentTimeStr"></span>
-                            <span class="text-[10px] text-white/40 font-bold" x-text="durationStr"></span>
+                            <span class="text-[10px] text-white/40 font-bold" x-text="currentTimeStr">0:00</span>
+                            <span class="text-[10px] text-white/40 font-bold" x-text="durationStr">0:00</span>
                         </div>
                     </div>
 
@@ -146,7 +146,7 @@
                     <div class="flex justify-between items-center mb-8">
                         <i class="fa-solid fa-shuffle text-xl opacity-40"></i>
                         <i class="fa-solid fa-backward-step text-3xl"></i>
-                        <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active">
+                        <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active shadow-xl">
                             <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                         </button>
                         <i class="fa-solid fa-forward-step text-3xl"></i>
@@ -176,33 +176,58 @@
                 initApp() {
                     this.fetchData('trending');
                     const audio = document.getElementById('mainAudio');
+                    
                     audio.ontimeupdate = () => {
-                        if (audio.duration) {
+                        if (audio.duration && isFinite(audio.duration)) {
                             this.progress = (audio.currentTime / audio.duration) * 100;
                             this.currentTimeStr = this.formatTime(audio.currentTime);
                             this.durationStr = this.formatTime(audio.duration);
                         }
                     };
+
                     audio.onplay = () => this.isPlaying = true;
                     audio.onpause = () => this.isPlaying = false;
+                    
                     setTimeout(() => { this.showSplash = false; }, 2000);
                 },
 
                 async fetchData(query) {
                     try {
                         const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
-                        this.songs = await response.json();
-                    } catch (e) { console.error("Search failed"); }
+                        const data = await response.json();
+                        // If backend fails and returns an error message instead of a list
+                        if (data.error) {
+                            console.error("Server Error:", data.error);
+                            return;
+                        }
+                        this.songs = data;
+                    } catch (e) { 
+                        console.error("Network or JSON Error:", e);
+                    }
                 },
 
                 async playSong(song) {
                     const audio = document.getElementById('mainAudio');
                     if (this.activeTrack?.id !== song.id) {
                         this.activeTrack = song;
-                        const res = await fetch(`/stream?id=${song.id}`);
-                        const data = await res.json();
-                        audio.src = data.url;
-                        audio.load();
+                        this.isPlaying = false; // Reset play state while loading
+                        
+                        try {
+                            const res = await fetch(`/stream?id=${song.id}`);
+                            const data = await res.json();
+                            
+                            // Check if we got back HTML instead of JSON
+                            if (typeof data !== 'object' || data.error) {
+                                throw new Error("Invalid stream data");
+                            }
+                            
+                            audio.src = data.url;
+                            audio.load();
+                        } catch (e) {
+                            console.error("Streaming error:", e);
+                            alert("Unable to load song. Try another one.");
+                            return;
+                        }
                     }
                     this.playerOpen = true;
                     this.togglePlay(true);
@@ -210,18 +235,29 @@
 
                 togglePlay(force = null) {
                     const audio = document.getElementById('mainAudio');
-                    if (force === true) { audio.play(); return; }
-                    audio.paused ? audio.play() : audio.pause();
+                    if (force === true) { 
+                        audio.play().catch(e => console.log("Play failed: interaction required")); 
+                        return; 
+                    }
+                    audio.paused ? audio.play().catch(e => {}) : audio.pause();
                 },
 
                 handleSeek(e) {
                     const audio = document.getElementById('mainAudio');
+                    // Safety check for finite duration
+                    if (!audio.duration || !isFinite(audio.duration)) return;
+
                     const rect = e.currentTarget.getBoundingClientRect();
                     const percent = (e.clientX - rect.left) / rect.width;
-                    audio.currentTime = percent * audio.duration;
+                    const newTime = percent * audio.duration;
+                    
+                    if (isFinite(newTime)) {
+                        audio.currentTime = newTime;
+                    }
                 },
 
                 formatTime(secs) {
+                    if (!isFinite(secs) || isNaN(secs)) return '0:00';
                     let min = Math.floor(secs / 60);
                     let sec = Math.floor(secs % 60);
                     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
