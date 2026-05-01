@@ -9,42 +9,31 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root { --theme-color: #121212; }
         [x-cloak] { display: none !important; }
         body { background-color: #000; color: white; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; height: 100dvh; }
-        .app-shell { width: 100%; max-width: 450px; height: 100%; margin: 0 auto; position: relative; background: #121212; }
-
+        
         .immersive-player {
             position: fixed; top: 0; left: 50%; transform: translateX(-50%);
             width: 100%; max-width: 450px; height: 100%;
-            /* The background color here will be changed by JavaScript */
-            background: #121212; z-index: 100;
+            background-color: var(--theme-color); z-index: 100;
             display: flex; flex-direction: column;
-            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), background 0.8s ease;
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.8s ease;
         }
 
         .artwork-container { position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1; }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Updated overlay to fade into the dynamic color */
+        /* The fade now uses the CSS variable */
         .artwork-overlay { 
             position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 40%, rgba(18,18,18,0.5) 70%, currentcolor 100%); 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, var(--theme-color) 100%); 
             z-index: 2; 
         }
 
-        .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 40px; }
-
-        .timeline-container { width: 100%; margin-bottom: 25px; }
-        input[type="range"].progress-bar {
-            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1);
-            height: 4px; border-radius: 2px; outline: none;
-        }
-        input[type="range"].progress-bar::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 12px; width: 12px;
-            background: #fff; border-radius: 50%;
-        }
-
-        .song-card { background: #1c1c1c; border-radius: 8px; padding: 10px; }
+        .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 60px; }
+        input[type="range"].progress-bar { width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; }
+        input[type="range"].progress-bar::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; background: #fff; border-radius: 50%; }
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
         canvas { display: none; }
     </style>
@@ -53,165 +42,108 @@
 
 <div x-data="audifyApp()" x-init="initApp()">
     <canvas id="colorCanvas"></canvas>
-    
-    <div class="app-shell">
-        <!-- List View -->
-        <div class="h-full flex flex-col" x-show="!playerOpen">
-            <header class="p-6"><h1 class="text-2xl font-black mb-4">Audify</h1>
-                <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" placeholder="Search songs..." 
-                       class="w-full bg-zinc-800 rounded-lg py-3 px-5 outline-none border border-white/5">
-            </header>
-            <main class="flex-grow overflow-y-auto px-4 pb-20">
-                <div class="grid grid-cols-2 gap-4">
-                    <template x-for="song in songs" :key="song.id">
-                        <div class="song-card" @click="playSong(song)">
-                            <img :src="song.thumbnail" class="w-full aspect-square rounded-md object-cover mb-2" crossorigin="anonymous">
-                            <p class="text-sm font-bold truncate" x-text="song.title"></p>
-                            <p class="text-[11px] text-zinc-500 truncate" x-text="song.artist"></p>
-                        </div>
-                    </template>
-                </div>
-            </main>
+    <div class="immersive-player" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
+        
+        <div class="artwork-container">
+            <!-- We add the crossorigin attribute here -->
+            <img :src="activeTrack?.thumbnail" id="main-thumb" crossorigin="anonymous">
+            <div class="artwork-overlay"></div>
         </div>
 
-        <!-- PLAYER VIEW -->
-        <div class="immersive-player" id="playerBody" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
-            <div class="artwork-container">
-                <img :src="activeTrack?.thumbnail" id="main-thumb" crossorigin="anonymous">
-                <div class="artwork-overlay" id="dynamicOverlay"></div>
-            </div>
-
-            <div class="relative z-20 flex justify-between p-6">
-                <button @click="playerOpen = false"><i class="fa-solid fa-chevron-down text-xl"></i></button>
-                <i class="fa-solid fa-ellipsis-vertical text-xl opacity-50"></i>
-            </div>
-
-            <div class="player-content">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
-                    <p class="text-xl text-white/70 font-bold" x-text="activeTrack?.artist"></p>
-                </div>
-
-                <div class="timeline-container">
-                    <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                    <div class="flex justify-between mt-2 text-[11px] font-bold text-white/50 tracking-wider">
-                        <span x-text="formatTime(currentTime)">0:00</span>
-                        <span x-text="formatTime(duration)">0:00</span>
-                    </div>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <i class="fa-solid fa-shuffle text-xl opacity-30"></i>
-                    <i class="fa-solid fa-backward-step text-3xl"></i>
-                    <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-transform">
-                        <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
-                    </button>
-                    <i class="fa-solid fa-forward-step text-3xl"></i>
-                    <i class="fa-solid fa-repeat text-xl opacity-30"></i>
-                </div>
-            </div>
+        <div class="relative z-20 flex justify-between p-6">
+            <button @click="playerOpen = false"><i class="fa-solid fa-chevron-down text-xl"></i></button>
+            <i class="fa-solid fa-ellipsis-vertical text-xl opacity-50"></i>
         </div>
 
-        <div id="yt-hidden"><div id="youtube-player"></div></div>
+        <div class="player-content">
+            <div class="mb-10">
+                <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
+                <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
+            </div>
+
+            <div class="mb-8">
+                <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
+                <div class="flex justify-between mt-2 text-[10px] font-bold text-white/40">
+                    <span x-text="formatTime(currentTime)"></span>
+                    <span x-text="formatTime(duration)"></span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <i class="fa-solid fa-shuffle text-xl opacity-20"></i>
+                <i class="fa-solid fa-backward-step text-3xl"></i>
+                <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center">
+                    <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                </button>
+                <i class="fa-solid fa-forward-step text-3xl"></i>
+                <i class="fa-solid fa-repeat text-xl opacity-20"></i>
+            </div>
+        </div>
     </div>
+    
+    <!-- Hidden search/list view UI remains below -->
+    <div class="h-full flex flex-col" x-show="!playerOpen">
+         <!-- ... rest of your list UI ... -->
+         <header class="p-6"><h1 class="text-2xl font-black mb-4">Audify</h1>
+            <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" placeholder="Search..." class="w-full bg-zinc-800 rounded-lg py-3 px-5 outline-none">
+        </header>
+        <main class="flex-grow overflow-y-auto px-4"><div class="grid grid-cols-2 gap-4"><template x-for="song in songs"><div class="bg-zinc-900 p-2 rounded" @click="playSong(song)"><img :src="song.thumbnail" class="rounded mb-1"><p class="text-xs font-bold truncate" x-text="song.title"></p></div></template></div></main>
+    </div>
+    <div id="yt-hidden"><div id="youtube-player"></div></div>
 </div>
 
 <script>
     var player;
     function audifyApp() {
         return {
-            songs: [], searchQuery: '', activeTrack: null,
-            playerOpen: false, isPlaying: false,
-            currentTime: 0, duration: 0, timer: null,
-
+            songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0,
             initApp() {
-                this.fetchData('top hits');
+                this.fetchData('chill hits');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
             },
-
             async fetchData(q) {
                 const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
                 this.songs = await res.json();
             },
-
             playSong(song) {
                 this.activeTrack = song;
                 this.playerOpen = true;
                 this.isPlaying = true;
 
-                // Set image and extract color
-                const img = document.getElementById('main-thumb');
-                img.src = song.thumbnail;
-                img.onload = () => this.updateThemeColor(img);
+                // Create a proxy URL to bypass CORS security
+                const proxyUrl = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(song.thumbnail)}`;
+                
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = proxyUrl;
+                img.onload = () => this.extractColor(img);
 
-                if (player && typeof player.loadVideoById === 'function') {
-                    player.loadVideoById(song.id);
-                } else {
-                    player = new YT.Player('youtube-player', {
-                        height: '1', width: '1', videoId: song.id,
-                        playerVars: { 'autoplay': 1, 'controls': 0 },
-                        events: { 'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } }
-                    });
-                }
-                this.startTracking();
+                if (player) { player.loadVideoById(song.id); } 
+                else { player = new YT.Player('youtube-player', { height: '1', width: '1', videoId: song.id, events: { 'onStateChange': (e) => { if(e.data==1) this.duration = Math.floor(player.getDuration()); } } }); }
+                setInterval(() => { if(player && this.isPlaying) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
             },
-
-            updateThemeColor(imgElement) {
+            extractColor(img) {
                 const canvas = document.getElementById('colorCanvas');
                 const ctx = canvas.getContext('2d');
-                canvas.width = imgElement.naturalWidth || 50;
-                canvas.height = imgElement.naturalHeight || 50;
+                canvas.width = 10; canvas.height = 10; // Tiny size for speed
+                ctx.drawImage(img, 0, 0, 10, 10);
+                const data = ctx.getImageData(0, 0, 10, 10).data;
                 
-                ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                let r=0, g=0, b=0;
+                for (let i=0; i<data.length; i+=4) { r += data[i]; g += data[i+1]; b += data[i+2]; }
+                r = Math.floor(r/(data.length/4));
+                g = Math.floor(g/(data.length/4));
+                b = Math.floor(b/(data.length/4));
                 
-                let counts = {};
-                let maxCount = 0;
-                let dominant = 'rgb(18, 18, 18)';
-
-                // Sample pixels (step by 10 to save RAM)
-                for (let i = 0; i < imageData.length; i += 40) {
-                    let r = imageData[i];
-                    let g = imageData[i+1];
-                    let b = imageData[i+2];
-                    // Skip blacks/whites for better color vibrancy
-                    if ((r+g+b) < 100 || (r+g+b) > 700) continue; 
-                    
-                    let rgb = `rgb(${r},${g},${b})`;
-                    counts[rgb] = (counts[rgb] || 0) + 1;
-                    if (counts[rgb] > maxCount) {
-                        maxCount = counts[rgb];
-                        dominant = rgb;
-                    }
-                }
-                
-                document.getElementById('playerBody').style.backgroundColor = dominant;
-                document.getElementById('dynamicOverlay').style.color = dominant;
+                // Darken the color slightly for better text contrast
+                const color = `rgb(${Math.max(20, r-30)}, ${Math.max(20, g-30)}, ${Math.max(20, b-30)})`;
+                document.documentElement.style.setProperty('--theme-color', color);
             },
-
-            startTracking() {
-                if (this.timer) clearInterval(this.timer);
-                this.timer = setInterval(() => {
-                    if (player && this.isPlaying && typeof player.getCurrentTime === 'function') {
-                        this.currentTime = Math.floor(player.getCurrentTime());
-                    }
-                }, 1000);
-            },
-
-            seekMusic() { if (player) player.seekTo(this.currentTime, true); },
-            togglePlay() {
-                if (!player) return;
-                this.isPlaying = !this.isPlaying;
-                this.isPlaying ? player.playVideo() : player.pauseVideo();
-            },
-            formatTime(s) {
-                if (!s) return '0:00';
-                let m = Math.floor(s / 60);
-                let sec = Math.floor(s % 60);
-                return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-            }
+            seekMusic() { player.seekTo(this.currentTime, true); },
+            togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
+            formatTime(s) { let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
 </script>
