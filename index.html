@@ -17,7 +17,7 @@
             height: 100%; width: 100%;
             font-family: 'Inter', sans-serif;
             user-select: none; -webkit-tap-highlight-color: transparent;
-            overflow: hidden; /* Lock the main body */
+            overflow: hidden;
         }
 
         .app-shell { 
@@ -28,7 +28,6 @@
             overflow: hidden;
         }
 
-        /* MAIN PLAYER CONTAINER - NO SCROLLING HERE */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
@@ -38,6 +37,16 @@
             flex-direction: column;
             overflow: hidden; 
         }
+
+        /* VERTICAL CONTAINER - SNAPPING REMOVED FROM CSS TO FIX STICKINESS */
+        #verticalScrollContainer {
+            height: 100vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+        #verticalScrollContainer::-webkit-scrollbar { display: none; }
 
         .main-view {
             height: 100vh;
@@ -75,7 +84,6 @@
             display: block;
         }
 
-        /* LYRICS SECTION - THE WINDOW */
         .lyrics-section {
             height: 100vh;
             flex-shrink: 0;
@@ -83,17 +91,15 @@
             flex-direction: column;
             background: var(--theme-color);
             padding-top: 20px;
-            position: relative;
         }
 
-        /* THE INVISIBLE SCROLLABLE BOX (THE WINDOW INSIDE) */
+        /* THE INVISIBLE SCROLLABLE WINDOW */
         .lyrics-scroll-window {
             flex-grow: 1;
-            overflow-y: scroll; /* Forces a scrollable window */
-            scrollbar-width: none; /* Firefox */
+            overflow-y: auto;
+            scrollbar-width: none;
             padding: 0 35px;
             -webkit-overflow-scrolling: touch;
-            /* Fade effect for top and bottom */
             mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
         }
@@ -149,7 +155,6 @@
 <div x-data="audifyApp()" x-init="initApp()" class="app-shell" id="appShell">
     <canvas id="colorCanvas"></canvas>
     
-    <!-- Home UI -->
     <div class="h-full flex flex-col" x-show="!playerOpen">
         <header class="p-6 text-white">
             <h1 class="text-4xl font-black mb-4 tracking-tighter">Audify</h1>
@@ -168,26 +173,20 @@
         </main>
     </div>
 
-    <!-- PLAYER PAGE -->
     <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
-        
-        <!-- WRAPPER FOR VERTICAL SWIPE BETWEEN PLAYER AND LYRICS -->
-        <div class="h-[200vh] flex flex-col overflow-y-auto snap-y snap-mandatory scrollbar-hide" id="verticalScrollContainer">
-            
-            <!-- SECTION 1: MAIN PLAYER (SNAP) -->
-            <div class="main-view text-white snap-start">
+        <div id="verticalScrollContainer" @scroll.passive="handleMainScroll">
+            <!-- PAGE 1 -->
+            <div class="main-view text-white" id="playerView">
                 <div class="artwork-container">
                     <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArtwork">
                     <div class="artwork-overlay"></div>
                     <button @click="closePlayer" class="absolute top-12 left-8 z-30 p-2 text-white opacity-50"><i class="fa-solid fa-chevron-down text-2xl"></i></button>
                 </div>
-
                 <div class="player-content">
                     <div class="mb-10 w-full overflow-hidden">
                         <h2 class="text-3xl font-black mb-1 song-title" x-text="activeTrack?.title"></h2>
                         <p class="text-xl text-white/40 font-bold song-title" x-text="activeTrack?.artist"></p>
                     </div>
-
                     <div class="mb-12">
                         <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
                         <div class="flex justify-between mt-4 text-xs font-black text-white/30">
@@ -195,7 +194,6 @@
                             <span x-text="formatTime(duration)">0:00</span>
                         </div>
                     </div>
-
                     <div class="flex justify-around items-center">
                         <i class="fa-solid fa-backward-step text-4xl opacity-80"></i>
                         <button @click="togglePlay()" class="w-24 h-24 bg-white text-black rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]">
@@ -203,49 +201,32 @@
                         </button>
                         <i class="fa-solid fa-forward-step text-4xl opacity-80"></i>
                     </div>
-
-                    <div class="scroll-indicator">
-                        <p>Scroll for Lyrics</p>
-                        <i class="fa-solid fa-chevron-down mt-2"></i>
-                    </div>
+                    <div class="scroll-indicator"><p>Scroll for Lyrics</p><i class="fa-solid fa-chevron-down mt-2"></i></div>
                 </div>
             </div>
 
-            <!-- SECTION 2: LYRICS SECTION (SNAP) -->
-            <div class="lyrics-section snap-start">
+            <!-- PAGE 2 -->
+            <div class="lyrics-section" id="lyricsView">
                 <div class="flex items-center px-10 py-4 border-b border-white/5 mb-2">
                     <p class="text-[10px] font-black uppercase tracking-[3px] text-white/40">Lyrics</p>
                     <div class="ml-auto flex gap-4">
                         <button @click="showLyricsList = true" class="text-[10px] font-black bg-white/5 px-4 py-2 rounded-full text-white/60" x-show="lyricsVersions.length > 0">Versions</button>
                     </div>
                 </div>
-
-                <!-- THE INVISIBLE SCROLLABLE WINDOW -->
-                <div class="lyrics-scroll-window" id="lyricsWindow">
-                    <div class="h-[25vh]"></div> <!-- Top Spacer -->
+                <div class="lyrics-scroll-window" id="lyricsWindow" @scroll="handleLyricsScroll">
+                    <div class="h-[30vh]"></div>
                     <div class="lyrics-container">
                         <template x-for="(line, index) in parsedLyrics" :key="index">
-                            <div class="lyric-line" 
-                                 :id="'line-' + index"
-                                 :class="{ 'active': isLineActive(index) }"
-                                 x-text="line.text"></div>
+                            <div class="lyric-line" :id="'line-' + index" :class="{ 'active': isLineActive(index) }" x-text="line.text"></div>
                         </template>
-                        
-                        <div x-show="isSyncing" class="py-20 text-center opacity-20">
-                            <p class="text-xl font-bold animate-pulse">Syncing...</p>
-                        </div>
-
-                        <div x-show="!isSyncing && parsedLyrics.length === 0" class="py-20 text-center text-white/20 italic">
-                            <p x-text="lyricsStatus || 'No lyrics found for this track'"></p>
-                        </div>
                     </div>
-                    <div class="h-[45vh]"></div> <!-- Bottom Spacer -->
+                    <div class="h-[50vh]"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- VERSION MODAL -->
+    <!-- MODAL -->
     <div x-show="showLyricsList" x-cloak class="fixed inset-0 bg-black/95 z-[600] p-10 flex flex-col justify-center">
         <h3 class="text-white font-black text-2xl mb-8">Choose Version</h3>
         <div class="space-y-4 overflow-y-auto pr-2">
@@ -270,8 +251,9 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
-            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, 
-            lyricsStatus: '', isSyncing: false,
+            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null,
+            isUserScrollingLyrics: false, lyricsScrollTimeout: null,
+            mainScrollTimeout: null,
 
             initApp() {
                 this.fetchData('Trending');
@@ -286,65 +268,62 @@
             isLineActive(index) {
                 const active = this.currentTime >= this.parsedLyrics[index].time && 
                              (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
-                
-                if (active) {
-                    this.checkSnapAndScroll(index);
-                }
+                if (active) this.syncLyricsScroll(index);
                 return active;
             },
-            checkSnapAndScroll(index) {
+            handleLyricsScroll() {
+                this.isUserScrollingLyrics = true;
+                clearTimeout(this.lyricsScrollTimeout);
+                this.lyricsScrollTimeout = setTimeout(() => { this.isUserScrollingLyrics = false; }, 3000);
+            },
+            syncLyricsScroll(index) {
+                if (this.isUserScrollingLyrics || index === this.lastIndex) return;
                 const line = document.getElementById('line-' + index);
-                const windowEl = document.getElementById('lyricsWindow');
-                if (!line || !windowEl) return;
-
-                const rect = line.getBoundingClientRect();
-                const winRect = windowEl.getBoundingClientRect();
-                
-                // Snap if the line is currently visible inside the window
-                const isVisible = (
-                    rect.top >= winRect.top &&
-                    rect.bottom <= winRect.bottom
-                );
-
-                if (isVisible || this.lastIndex === -1) {
+                if (line) {
                     line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    this.lastIndex = index;
                 }
-                
-                this.lastIndex = index;
+            },
+            // MANUAL SNAP LOGIC for the Main Player
+            handleMainScroll(e) {
+                clearTimeout(this.mainScrollTimeout);
+                this.mainScrollTimeout = setTimeout(() => {
+                    const container = e.target;
+                    const scrollPos = container.scrollTop;
+                    const vh = window.innerHeight;
+                    
+                    // If scrolled more than 20% toward lyrics, snap to lyrics, otherwise snap back to player
+                    if (scrollPos > 0 && scrollPos < vh) {
+                        const target = scrollPos > vh * 0.2 ? vh : 0;
+                        container.scrollTo({ top: target, behavior: 'smooth' });
+                    }
+                }, 150); // Small delay to wait for scroll to finish
             },
             closePlayer() {
                 this.playerOpen = false;
-                document.getElementById('verticalScrollContainer').scrollTo(0,0);
+                setTimeout(() => document.getElementById('verticalScrollContainer').scrollTop = 0, 600);
             },
             async playSong(song) {
                 this.activeTrack = JSON.parse(JSON.stringify(song)); 
-                this.playerOpen = true;
-                this.isPlaying = true;
-                this.parsedLyrics = [];
-                this.lyricsVersions = [];
-                this.isSyncing = true;
-                this.currentTime = 0;
-                this.lastIndex = -1;
-
+                this.playerOpen = true; this.isPlaying = true; this.parsedLyrics = [];
+                this.currentTime = 0; this.lastIndex = -1;
+                
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
-                const onData = (e) => {
+                window.addEventListener('itunes-data', (e) => {
                     if (e.detail.results?.length > 0) {
-                        const hqUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '1000x1000bb.jpg');
-                        const tempImg = new Image(); tempImg.crossOrigin = "anonymous"; tempImg.src = hqUrl;
-                        tempImg.onload = () => { this.activeTrack.thumbnail = hqUrl; this.updateTheme(tempImg); };
+                        this.activeTrack.thumbnail = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '1000x1000bb.jpg');
                     }
-                };
-                window.addEventListener('itunes-data', onData, { once: true });
+                }, { once: true });
                 document.body.appendChild(script);
 
                 const startVideo = () => {
-                    if (player && typeof player.loadVideoById === 'function') {
+                    if (player && player.loadVideoById) {
                         player.loadVideoById(song.id);
                     } else {
                         player = new YT.Player('youtube-player', {
                             height: '0', width: '0', videoId: song.id,
-                            playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1 },
+                            playerVars: { 'autoplay': 1, 'controls': 0 },
                             events: { 
                                 'onReady': (e) => e.target.playVideo(),
                                 'onStateChange': (e) => { 
@@ -357,34 +336,18 @@
                         });
                     }
                 };
-
-                if (window.YT && window.YT.Player) {
-                    startVideo();
-                } else {
-                    window.onYouTubeIframeAPIReady = startVideo;
-                }
+                window.YT ? startVideo() : window.onYouTubeIframeAPIReady = startVideo;
 
                 if(!this.intv) {
-                    setInterval(() => { 
-                        if(player && this.isPlaying && typeof player.getCurrentTime === 'function') {
-                            this.currentTime = player.getCurrentTime();
-                        } 
-                    }, 500);
+                    setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = player.getCurrentTime(); }, 500);
                     this.intv = true;
                 }
             },
             async getLyricsList(artist, title) {
-                try {
-                    const cleanArtist = artist.replace(/\s*-\s*Topic/i, '').trim();
-                    const cleanTitle = title.replace(/\(.*\)|\[.*\]/g, '').trim();
-                    const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`);
-                    const data = await res.json();
-                    this.lyricsVersions = data.filter(l => l.syncedLyrics);
-                    if(this.lyricsVersions.length > 0) {
-                        let closest = this.lyricsVersions.reduce((prev, curr) => Math.abs(curr.duration - this.duration) < Math.abs(prev.duration - this.duration) ? curr : prev);
-                        this.selectLyrics(closest);
-                    } else { this.isSyncing = false; this.lyricsStatus = 'Lyrics unavailable.'; }
-                } catch (e) { this.isSyncing = false; }
+                const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
+                const data = await res.json();
+                this.lyricsVersions = data.filter(l => l.syncedLyrics);
+                if(this.lyricsVersions.length > 0) this.selectLyrics(this.lyricsVersions[0]);
             },
             selectLyrics(version) {
                 this.selectedLyricsId = version.id;
@@ -392,25 +355,11 @@
                     const m = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
                     return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() } : null;
                 }).filter(l => l && l.text);
-                this.isSyncing = false;
                 this.showLyricsList = false;
-                this.lastIndex = -1;
-            },
-            updateTheme(img) {
-                const canvas = document.getElementById('colorCanvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = 10; canvas.height = 10;
-                ctx.drawImage(img, 0, 0, 10, 10);
-                const p = ctx.getImageData(0, 0, 10, 10).data;
-                let r=0, g=0, b=0, count = p.length/4;
-                for (let i=0; i<p.length; i+=4) { r += p[i]; g += p[i+1]; b += p[i+2]; }
-                const color = `rgb(${Math.max(15, (r/count)-50)}, ${Math.max(15, (g/count)-50)}, ${Math.max(15, (b/count)-50)})`;
-                document.documentElement.style.setProperty('--theme-color', color);
-                document.getElementById('appShell').style.backgroundColor = color;
             },
             togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
             seekMusic() { player.seekTo(this.currentTime, true); },
-            formatTime(s) { if(!s || s < 0) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+            formatTime(s) { let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
 </script>
