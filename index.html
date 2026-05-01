@@ -26,21 +26,20 @@
             transition: background-color 1s ease-in-out;
         }
 
-        /* FIXED: Main player is now scrollable */
+        /* MAIN SCROLLABLE PLAYER */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
-            overflow-y: auto; /* Re-enabled scrolling */
-            scroll-snap-type: y proximity;
+            overflow-y: auto;
+            scrollbar-width: none;
         }
         .immersive-player::-webkit-scrollbar { display: none; }
 
         .artwork-container { 
             position: relative; width: 100%; height: 45vh; min-height: 320px; shrink: 0;
-            scroll-snap-align: start;
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -49,41 +48,45 @@
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
         }
 
-        .player-content { padding: 0 30px 20px; shrink: 0; }
+        .player-content { padding: 0 30px 10px; shrink: 0; }
 
+        /* LIQUID GLASS LYRICS SECTION */
         .lyrics-section {
-            width: 100%;
-            min-height: 100vh;
+            margin: 20px;
+            padding: 20px 0;
+            min-height: 80vh;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 40px;
             display: flex;
             flex-direction: column;
             position: relative;
-            scroll-snap-align: start;
         }
 
         .lyrics-scroll-box {
             flex-grow: 1;
-            padding: 0 60px; 
-            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            padding: 0 40px; 
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
         }
 
-        .scroll-spacer { height: 40vh; }
+        .scroll-spacer { height: 35vh; }
 
         .lyric-line {
-            font-size: 2rem;
+            font-size: 1.8rem;
             line-height: 1.2;
             font-weight: 900;
-            margin-bottom: 40px;
+            margin-bottom: 35px;
             transition: all 0.4s ease;
             color: rgba(255, 255, 255, 0.1);
-            filter: blur(1px);
         }
 
         .lyric-line.active { 
             color: #fff; 
-            transform: scale(1.05); 
-            filter: blur(0px);
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            transform: scale(1.04); 
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
 
         input[type="range"].progress-bar { 
@@ -92,6 +95,15 @@
         }
         input[type="range"].progress-bar::-webkit-slider-thumb { 
             -webkit-appearance: none; height: 16px; width: 16px; background: #fff; border-radius: 50%; 
+        }
+
+        .dot-pulse {
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+            background-color: #fff; animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
         }
 
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
@@ -125,7 +137,7 @@
     <!-- PLAYER PAGE -->
     <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
-            <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
+            <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArtwork">
             <div class="artwork-overlay"></div>
             <button @click="playerOpen = false" class="absolute top-10 left-6 z-30 p-2 text-white opacity-40"><i class="fa-solid fa-chevron-down text-xl"></i></button>
         </div>
@@ -155,18 +167,51 @@
             </div>
         </div>
 
-        <!-- LYRICS SECTION -->
+        <!-- LYRICS SECTION (Liquid Glass) -->
         <div class="lyrics-section" id="lyricsSection">
-            <div class="lyrics-scroll-box">
+            <div class="flex justify-between items-center px-10 py-2">
+                <p class="text-[9px] font-black uppercase tracking-widest text-white/20">Synced Lyrics</p>
+                <button @click="showLyricsList = true" class="text-[9px] font-black uppercase bg-white/5 px-3 py-1 rounded-full text-white/40" x-show="lyricsVersions.length > 0">Versions</button>
+            </div>
+
+            <div class="lyrics-scroll-box" id="lyricsScrollBox">
                 <div class="scroll-spacer"></div>
+                
+                <div x-show="isSyncing" class="flex flex-col items-center py-10 opacity-30">
+                    <div class="dot-pulse mb-4"></div>
+                    <p class="text-[10px] font-black uppercase tracking-widest">Awaiting Sync...</p>
+                </div>
+
                 <template x-for="(line, index) in parsedLyrics" :key="index">
                     <div class="lyric-line" 
                          :id="'line-' + index"
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
+                
+                <div x-show="!isSyncing && parsedLyrics.length === 0" class="opacity-20 italic text-center py-10" x-text="lyricsStatus"></div>
+                
                 <div class="scroll-spacer"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- VERSION MODAL -->
+    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/90 z-[500] flex items-end">
+        <div class="p-8 bg-[#111] w-full rounded-t-[40px] max-h-[70vh] overflow-y-auto">
+            <h3 class="text-white font-black text-xl mb-6">Select Version</h3>
+            <div class="space-y-4">
+                <template x-for="item in lyricsVersions" :key="item.id">
+                    <div @click="selectLyrics(item)" class="p-5 rounded-2xl flex justify-between items-center" :class="selectedLyricsId === item.id ? 'bg-white/10' : 'bg-white/5'">
+                        <div class="overflow-hidden">
+                            <p class="text-white font-bold text-sm truncate" x-text="item.trackName"></p>
+                            <p class="text-white/40 text-[10px]" x-text="'Match Score: ' + Math.abs(item.duration - duration) + 's difference'"></p>
+                        </div>
+                        <span class="text-white/60 font-black text-xs" x-text="formatTime(item.duration)"></span>
+                    </div>
+                </template>
+            </div>
+            <button @click="showLyricsList = false" class="w-full mt-6 py-4 bg-white text-black font-black rounded-2xl">Close</button>
         </div>
     </div>
 
@@ -181,6 +226,8 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
+            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, 
+            lyricsStatus: '', isSyncing: false,
 
             initApp() {
                 this.fetchData('Trending');
@@ -204,11 +251,10 @@
             scrollLyrics(index) {
                 const line = document.getElementById('line-' + index);
                 const container = document.getElementById('mainPlayer');
-                const section = document.getElementById('lyricsSection');
                 
                 if (line && container) {
-                    // Only auto-scroll if the user is actually looking at the lyrics section
-                    if (container.scrollTop > 200) {
+                    // Only snap scroll if the user is currently scrolled down to the lyrics section
+                    if (container.scrollTop > 250) {
                         const targetPos = line.offsetTop - (container.clientHeight / 2) + (line.clientHeight / 2);
                         container.scrollTo({ top: targetPos, behavior: 'smooth' });
                     }
@@ -219,18 +265,21 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
                 this.parsedLyrics = [];
+                this.lyricsVersions = [];
                 this.lastIndex = -1;
+                this.isSyncing = true;
+                this.duration = 0;
 
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
-                window.addEventListener('itunes-data', (e) => {
+                const onData = (e) => {
                     if (e.detail.results?.length > 0) {
                         const hqUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
-                        this.activeTrack.thumbnail = hqUrl;
                         const tempImg = new Image(); tempImg.crossOrigin = "anonymous"; tempImg.src = hqUrl;
-                        tempImg.onload = () => this.updateTheme(tempImg);
+                        tempImg.onload = () => { this.activeTrack.thumbnail = hqUrl; this.updateTheme(tempImg); };
                     }
-                }, { once: true });
+                };
+                window.addEventListener('itunes-data', onData, { once: true });
                 document.body.appendChild(script);
 
                 if (player && player.loadVideoById) {
@@ -238,25 +287,52 @@
                 } else {
                     player = new YT.Player('youtube-player', {
                         height: '1', width: '1', videoId: song.id,
-                        events: { 'onStateChange': (e) => { if(e.data == 1) this.getLyrics(song.artist, song.title); } }
+                        events: { 
+                            'onStateChange': (e) => { 
+                                if(e.data == 1) {
+                                    this.duration = Math.floor(player.getDuration());
+                                    this.getLyricsList(this.activeTrack.artist, this.activeTrack.title);
+                                }
+                            } 
+                        }
                     });
                 }
 
                 if(!this.intv) {
-                    setInterval(() => { if(player && this.isPlaying) this.currentTime = player.getCurrentTime(); }, 500);
+                    setInterval(() => { 
+                        if(player && this.isPlaying) {
+                            this.currentTime = player.getCurrentTime();
+                        } 
+                    }, 500);
                     this.intv = true;
                 }
             },
-            async getLyrics(artist, title) {
-                const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
-                const data = await res.json();
-                const best = data.find(l => l.syncedLyrics);
-                if(best) {
-                    this.parsedLyrics = best.syncedLyrics.split('\n').map(line => {
-                        const m = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                        return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() } : null;
-                    }).filter(l => l && l.text);
-                }
+            async getLyricsList(artist, title) {
+                try {
+                    const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
+                    const data = await res.json();
+                    this.lyricsVersions = data.filter(l => l.syncedLyrics);
+                    
+                    if(this.lyricsVersions.length > 0) {
+                        let closest = this.lyricsVersions.reduce((prev, curr) => {
+                            return (Math.abs(curr.duration - this.duration) < Math.abs(prev.duration - this.duration) ? curr : prev);
+                        });
+                        this.selectLyrics(closest);
+                    } else {
+                        this.isSyncing = false;
+                        this.lyricsStatus = 'No synced lyrics found.';
+                    }
+                } catch (e) { this.isSyncing = false; this.lyricsStatus = 'Error fetching lyrics.'; }
+            },
+            selectLyrics(version) {
+                this.selectedLyricsId = version.id;
+                this.parsedLyrics = version.syncedLyrics.split('\n').map(line => {
+                    const m = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                    return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() } : null;
+                }).filter(l => l && l.text);
+                this.isSyncing = false;
+                this.showLyricsList = false;
+                this.lastIndex = -1;
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
