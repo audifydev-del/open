@@ -9,7 +9,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --theme-color: #0f0f0f; }
+        :root { --theme-color: #121212; }
         [x-cloak] { display: none !important; }
         
         body, html { 
@@ -22,14 +22,14 @@
             width: 100%; max-width: 450px; height: 100%; 
             position: relative; 
             background-color: var(--theme-color) !important; 
-            transition: background-color 0.8s ease-in-out;
+            transition: background-color 1.2s ease;
             overflow: hidden;
         }
 
         .home-page { 
             position: absolute; inset: 0;
             display: flex; flex-direction: column; z-index: 1;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 100%);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
         }
 
         .immersive-player {
@@ -37,7 +37,7 @@
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
-            transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.8s ease;
+            transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1.2s ease;
         }
 
         .artwork-container { 
@@ -47,7 +47,7 @@
         
         .artwork-overlay { 
             position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 40%, var(--theme-color) 100%); 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, var(--theme-color) 100%); 
             z-index: 2;
         }
 
@@ -60,13 +60,6 @@
         input[type="range"].progress-bar::-webkit-slider-thumb { 
             -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
         }
-
-        .song-card { 
-            background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(10px);
-            border-radius: 14px; padding: 10px; 
-            border: 1px solid rgba(255,255,255,0.1); 
-        }
         
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
         canvas { display: none; }
@@ -78,17 +71,17 @@
     <canvas id="colorCanvas"></canvas>
     
     <div class="home-page">
-        <header class="p-6 shrink-0">
+        <header class="p-6">
             <h1 class="text-3xl font-black mb-4 tracking-tighter text-white">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
                    placeholder="Search..." 
                    class="w-full bg-white/10 rounded-xl py-3 px-5 text-white outline-none border border-white/5">
         </header>
 
-        <main class="flex-grow overflow-y-auto px-4 pb-10">
+        <main class="flex-grow overflow-y-auto px-4 pb-24">
             <div class="grid grid-cols-2 gap-4">
                 <template x-for="song in songs" :key="song.id">
-                    <div class="song-card active:scale-95 transition-all" @click="playSong(song)">
+                    <div class="bg-white/5 p-3 rounded-2xl active:scale-95 transition-all" @click="playSong(song)">
                         <img :src="song.thumbnail" class="w-full aspect-square rounded-lg object-cover mb-2">
                         <p class="text-xs font-bold truncate text-white" x-text="song.title"></p>
                         <p class="text-[10px] text-white/40 truncate" x-text="song.artist"></p>
@@ -98,7 +91,7 @@
         </main>
     </div>
 
-    <!-- PLAYER -->
+    <!-- PLAYER UI -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
             <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
@@ -112,13 +105,13 @@
 
         <div class="player-content text-white">
             <div class="mb-10">
-                <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
+                <h2 class="text-2xl font-black truncate" x-text="activeTrack?.title"></h2>
                 <p class="text-lg text-white/60 font-bold" x-text="activeTrack?.artist"></p>
             </div>
 
             <div class="mb-8">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                <div class="flex justify-between mt-3 text-[10px] font-bold text-white/30 tracking-widest uppercase">
+                <div class="flex justify-between mt-3 text-[10px] font-bold text-white/40 uppercase">
                     <span x-text="formatTime(currentTime)">0:00</span>
                     <span x-text="formatTime(duration)">0:00</span>
                 </div>
@@ -145,7 +138,7 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0,
             initApp() {
-                this.fetchData('Hits 2026');
+                this.fetchData('Trending');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -159,38 +152,32 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
 
-                // 1. iTunes for Artwork
-                const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song`;
+                // 1. USE DEEZER (PUBLIC API) - No account key needed!
+                const deezerUrl = `https://corsproxy.io/?${encodeURIComponent('https://api.deezer.com/search?q=' + song.artist + ' ' + song.title)}`;
                 
                 try {
-                    const response = await fetch(itunesUrl);
+                    const response = await fetch(deezerUrl);
                     const data = await response.json();
-                    if (data.results?.length > 0) {
-                        const highRes = data.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
-                        this.activeTrack.thumbnail = highRes;
+                    if (data.data && data.data.length > 0) {
+                        const imgUrl = data.data[0].album.cover_xl; // High quality cover
+                        this.activeTrack.thumbnail = imgUrl;
 
-                        // 2. STABLE PROXY for Color Extraction
+                        // 2. Extract Color via Canvas
                         const img = new Image();
                         img.crossOrigin = "anonymous";
-                        // Using corsproxy.io instead of Google's flaky proxy
-                        img.src = `https://corsproxy.io/?${encodeURIComponent(highRes)}`;
+                        img.src = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
                         
                         img.onload = () => this.updateTheme(img);
-                        img.onerror = () => {
-                            // Fallback to a neutral dark color if extraction fails
-                            this.setColors(30, 30, 30);
-                        };
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { console.warn("Deezer/CORS Error:", e); }
 
-                // 3. YouTube Player with Origin Fix
+                // 3. YouTube Loading
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById(song.id);
                 } else {
                     player = new YT.Player('youtube-player', {
                         height: '1', width: '1', videoId: song.id,
-                        host: 'https://www.youtube.com', // Fixes origin warning
-                        playerVars: { 'origin': window.location.origin },
+                        playerVars: { 'origin': window.location.origin, 'enablejsapi': 1 },
                         events: { 'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } }
                     });
                 }
@@ -209,10 +196,9 @@
                 let r=0, g=0, b=0;
                 for (let i=0; i<p.length; i+=4) { r += p[i]; g += p[i+1]; b += p[i+2]; }
                 const count = p.length/4;
-                this.setColors(r/count, g/count, b/count);
-            },
-            setColors(r, g, b) {
-                const color = `rgb(${Math.max(15, r-35)}, ${Math.max(15, g-35)}, ${Math.max(15, b-35)})`;
+                
+                // Slightly darken for background
+                const color = `rgb(${Math.max(20, (r/count)-40)}, ${Math.max(20, (g/count)-40)}, ${Math.max(20, (b/count)-40)})`;
                 document.documentElement.style.setProperty('--theme-color', color);
                 document.getElementById('appShell').style.backgroundColor = color;
             },
