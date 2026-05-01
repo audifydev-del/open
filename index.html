@@ -27,22 +27,19 @@
             overflow: hidden;
         }
 
-        .home-page { 
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column; z-index: 1;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-        }
-
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
+            overflow-y: auto; /* Makes the player scrollable */
+            scrollbar-width: none;
         }
+        .immersive-player::-webkit-scrollbar { display: none; }
 
         .artwork-container { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 65%; z-index: 1;
+            position: relative; width: 100%; height: 60vh; min-height: 400px; z-index: 1;
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -52,7 +49,7 @@
             z-index: 2;
         }
 
-        .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 60px; }
+        .player-content { position: relative; z-index: 10; padding: 0 30px 40px; }
 
         input[type="range"].progress-bar { 
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.2); 
@@ -62,12 +59,20 @@
             -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
         }
 
-        .song-card { 
-            background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(10px);
-            border-radius: 18px; padding: 12px; 
-            border: 1px solid rgba(255,255,255,0.1); 
-            transition: transform 0.2s;
+        .lyrics-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            min-height: 200px;
+        }
+        
+        .lyrics-text {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            white-space: pre-wrap;
         }
         
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
@@ -79,86 +84,62 @@
 <div x-data="audifyApp()" x-init="initApp()" class="app-shell" id="appShell">
     <canvas id="colorCanvas"></canvas>
     
-    <div class="home-page" x-show="!playerOpen" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-        <header class="p-6 shrink-0">
+    <!-- Home UI -->
+    <div class="home-page h-full flex flex-col" x-show="!playerOpen">
+        <header class="p-6">
             <h1 class="text-4xl font-black mb-4 tracking-tighter text-white">Audify</h1>
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-white/30"></i>
-                <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                       placeholder="Artists, songs, or podcasts" 
-                       class="w-full bg-white/10 rounded-2xl py-4 pl-12 pr-5 text-white outline-none border border-white/5 focus:bg-white/20 transition-all">
-            </div>
+            <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
+                   placeholder="Search songs..." 
+                   class="w-full bg-white/10 rounded-2xl py-4 px-6 text-white outline-none border border-white/5">
         </header>
-
         <main class="flex-grow overflow-y-auto px-4 pb-24">
-            <h2 class="text-white/50 text-xs font-bold uppercase tracking-widest mb-4 px-2">Quick Picks</h2>
             <div class="grid grid-cols-2 gap-4">
                 <template x-for="song in songs" :key="song.id">
-                    <div class="song-card active:scale-95" @click="playSong(song)">
-                        <div class="relative group">
-                            <img :src="song.thumbnail" class="w-full aspect-square rounded-xl object-cover mb-3 shadow-lg">
-                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center">
-                                <i class="fa-solid fa-play text-white text-2xl"></i>
-                            </div>
-                        </div>
+                    <div class="bg-white/5 p-3 rounded-2xl" @click="playSong(song)">
+                        <img :src="song.thumbnail" class="w-full aspect-square rounded-xl object-cover mb-2">
                         <p class="text-sm font-bold truncate text-white" x-text="song.title"></p>
-                        <p class="text-[11px] text-white/40 truncate font-medium" x-text="song.artist"></p>
                     </div>
                 </template>
             </div>
         </main>
     </div>
 
-    <!-- FULL PLAYER -->
+    <!-- SCROLLABLE PLAYER -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
-            <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
+            <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArt">
             <div class="artwork-overlay"></div>
-        </div>
-
-        <div class="relative z-20 flex justify-between p-6 pt-10 text-white">
-            <button @click="playerOpen = false" class="p-2 active:scale-90 transition-transform">
+            <button @click="playerOpen = false" class="absolute top-10 left-6 z-30 p-2 bg-black/20 rounded-full text-white">
                 <i class="fa-solid fa-chevron-down text-xl"></i>
             </button>
-            <div class="text-center">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Playing from search</p>
-                <p class="text-xs font-bold" x-text="searchQuery || 'Trending'"></p>
-            </div>
-            <button class="p-2"><i class="fa-solid fa-ellipsis-vertical text-xl opacity-50"></i></button>
         </div>
 
         <div class="player-content text-white">
-            <div class="flex justify-between items-end mb-10">
-                <div class="max-w-[80%]">
-                    <h2 class="text-3xl font-black truncate leading-tight tracking-tight" x-text="activeTrack?.title"></h2>
-                    <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
-                </div>
-                <button class="mb-2"><i class="fa-regular fa-heart text-2xl opacity-50"></i></button>
+            <div class="mb-8">
+                <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
+                <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
             </div>
 
             <div class="mb-8">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                <div class="flex justify-between mt-3 text-[11px] font-black text-white/30 tracking-widest uppercase">
+                <div class="flex justify-between mt-3 text-[11px] font-bold text-white/30">
                     <span x-text="formatTime(currentTime)">0:00</span>
                     <span x-text="formatTime(duration)">0:00</span>
                 </div>
             </div>
 
-            <div class="flex justify-between items-center mb-6">
-                <button class="p-2"><i class="fa-solid fa-shuffle text-xl opacity-30 hover:opacity-100 transition-opacity"></i></button>
-                <button class="p-2 active:scale-90 transition-transform"><i class="fa-solid fa-backward-step text-3xl"></i></button>
-                
-                <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)] active:scale-90 transition-all">
+            <div class="flex justify-center items-center gap-8 mb-10">
+                <i class="fa-solid fa-backward-step text-3xl"></i>
+                <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center">
                     <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                 </button>
-                
-                <button class="p-2 active:scale-90 transition-transform"><i class="fa-solid fa-forward-step text-3xl"></i></button>
-                <button class="p-2"><i class="fa-solid fa-repeat text-xl opacity-30 hover:opacity-100 transition-opacity"></i></button>
+                <i class="fa-solid fa-forward-step text-3xl"></i>
             </div>
 
-            <div class="flex justify-between px-4 opacity-40">
-                <i class="fa-solid fa-share-nodes text-lg"></i>
-                <i class="fa-solid fa-list-ul text-lg"></i>
+            <!-- LYRICS SECTION -->
+            <div class="lyrics-section">
+                <p class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Lyrics</p>
+                <div class="lyrics-text" x-text="lyrics || 'Loading lyrics...'"></div>
             </div>
         </div>
     </div>
@@ -174,9 +155,9 @@
 
     function audifyApp() {
         return {
-            songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0,
+            songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0, lyrics: '',
             initApp() {
-                this.fetchData('Latest Pop Hits');
+                this.fetchData('Latest Pop');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -189,18 +170,15 @@
                 this.activeTrack = song;
                 this.playerOpen = true;
                 this.isPlaying = true;
+                this.lyrics = 'Searching for lyrics...';
 
-                // Color extraction using JSONP (Safe from CORS)
+                // 1. Fetch High-Res Art & Color (JSONP)
                 const script = document.createElement('script');
-                const term = encodeURIComponent(`${song.artist} ${song.title}`);
-                script.src = `https://itunes.apple.com/search?term=${term}&limit=1&entity=song&callback=handleItunesResponse`;
-                
+                script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
                 const onData = (e) => {
-                    const data = e.detail;
-                    if (data.results?.length > 0) {
-                        const imgUrl = data.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
+                    if (e.detail.results?.length > 0) {
+                        const imgUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
                         this.activeTrack.thumbnail = imgUrl;
-                        
                         const img = new Image();
                         img.crossOrigin = "anonymous";
                         img.src = imgUrl;
@@ -209,27 +187,33 @@
                     window.removeEventListener('itunes-data', onData);
                     if(script.parentNode) script.parentNode.removeChild(script);
                 };
-                
                 window.addEventListener('itunes-data', onData);
                 document.body.appendChild(script);
 
-                // YouTube Control
-                if (player && typeof player.loadVideoById === 'function') {
+                // 2. Fetch Lyrics from LRCLIB
+                this.getLyrics(song.artist, song.title);
+
+                // 3. YouTube
+                if (player && player.loadVideoById) {
                     player.loadVideoById(song.id);
                 } else {
                     player = new YT.Player('youtube-player', {
                         height: '1', width: '1', videoId: song.id,
-                        playerVars: { 'origin': window.location.origin, 'autoplay': 1, 'controls': 0 },
-                        events: { 
-                            'onReady': (e) => e.target.playVideo(),
-                            'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } 
-                        }
+                        events: { 'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } }
                     });
                 }
-                
-                if(!this.intervalSet) {
+                if(!this.intv) {
                     setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
-                    this.intervalSet = true;
+                    this.intv = true;
+                }
+            },
+            async getLyrics(artist, title) {
+                try {
+                    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
+                    const data = await res.json();
+                    this.lyrics = data.plainLyrics || data.syncedLyrics?.replace(/\[.*?\]/g, '') || "Lyrics not found.";
+                } catch (e) {
+                    this.lyrics = "Could not load lyrics.";
                 }
             },
             updateTheme(img) {
@@ -241,19 +225,16 @@
                 let r=0, g=0, b=0;
                 for (let i=0; i<p.length; i+=4) { r += p[i]; g += p[i+1]; b += p[i+2]; }
                 const count = p.length/4;
-                
-                // Deep dynamic background color
                 const color = `rgb(${Math.max(15, (r/count)-45)}, ${Math.max(15, (g/count)-45)}, ${Math.max(15, (b/count)-45)})`;
                 document.documentElement.style.setProperty('--theme-color', color);
                 document.getElementById('appShell').style.backgroundColor = color;
                 document.querySelector('.immersive-player').style.backgroundColor = color;
             },
             togglePlay() { 
-                if(!player) return;
                 this.isPlaying = !this.isPlaying; 
                 this.isPlaying ? player.playVideo() : player.pauseVideo(); 
             },
-            seekMusic() { if(player) player.seekTo(this.currentTime, true); },
+            seekMusic() { player.seekTo(this.currentTime, true); },
             formatTime(s) { if(!s) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
