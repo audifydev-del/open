@@ -16,38 +16,46 @@
         .immersive-player {
             position: fixed; top: 0; left: 50%; transform: translateX(-50%);
             width: 100%; max-width: 450px; height: 100%;
+            /* The background color here will be changed by JavaScript */
             background: #121212; z-index: 100;
             display: flex; flex-direction: column;
-            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), background 0.8s ease;
         }
 
         .artwork-container { position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1; }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
-        .artwork-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.4) 40%, #121212 90%); z-index: 2; }
+        
+        /* Updated overlay to fade into the dynamic color */
+        .artwork-overlay { 
+            position: absolute; inset: 0; 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 40%, rgba(18,18,18,0.5) 70%, currentcolor 100%); 
+            z-index: 2; 
+        }
 
         .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 40px; }
 
-        /* THE TIMELINE (Progress Bar) */
         .timeline-container { width: 100%; margin-bottom: 25px; }
         input[type="range"].progress-bar {
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1);
-            height: 4px; border-radius: 2px; outline: none; cursor: pointer;
+            height: 4px; border-radius: 2px; outline: none;
         }
         input[type="range"].progress-bar::-webkit-slider-thumb {
             -webkit-appearance: none; height: 12px; width: 12px;
-            background: #fff; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            background: #fff; border-radius: 50%;
         }
 
         .song-card { background: #1c1c1c; border-radius: 8px; padding: 10px; }
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
 <div x-data="audifyApp()" x-init="initApp()">
+    <canvas id="colorCanvas"></canvas>
+    
     <div class="app-shell">
-        
-        <!-- Search/List View -->
+        <!-- List View -->
         <div class="h-full flex flex-col" x-show="!playerOpen">
             <header class="p-6"><h1 class="text-2xl font-black mb-4">Audify</h1>
                 <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" placeholder="Search songs..." 
@@ -57,7 +65,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <template x-for="song in songs" :key="song.id">
                         <div class="song-card" @click="playSong(song)">
-                            <img :src="song.thumbnail" class="w-full aspect-square rounded-md object-cover mb-2">
+                            <img :src="song.thumbnail" class="w-full aspect-square rounded-md object-cover mb-2" crossorigin="anonymous">
                             <p class="text-sm font-bold truncate" x-text="song.title"></p>
                             <p class="text-[11px] text-zinc-500 truncate" x-text="song.artist"></p>
                         </div>
@@ -67,10 +75,10 @@
         </div>
 
         <!-- PLAYER VIEW -->
-        <div class="immersive-player" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
+        <div class="immersive-player" id="playerBody" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
             <div class="artwork-container">
-                <img :src="activeTrack?.thumbnail" id="main-thumb">
-                <div class="artwork-overlay"></div>
+                <img :src="activeTrack?.thumbnail" id="main-thumb" crossorigin="anonymous">
+                <div class="artwork-overlay" id="dynamicOverlay"></div>
             </div>
 
             <div class="relative z-20 flex justify-between p-6">
@@ -81,19 +89,17 @@
             <div class="player-content">
                 <div class="mb-8">
                     <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
-                    <p class="text-xl text-zinc-400 font-bold" x-text="activeTrack?.artist"></p>
+                    <p class="text-xl text-white/70 font-bold" x-text="activeTrack?.artist"></p>
                 </div>
 
-                <!-- NEW TIMELINE LAYOUT -->
                 <div class="timeline-container">
                     <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                    <div class="flex justify-between mt-2 text-[11px] font-bold text-zinc-500 tracking-wider">
+                    <div class="flex justify-between mt-2 text-[11px] font-bold text-white/50 tracking-wider">
                         <span x-text="formatTime(currentTime)">0:00</span>
                         <span x-text="formatTime(duration)">0:00</span>
                     </div>
                 </div>
 
-                <!-- CONTROLS -->
                 <div class="flex justify-between items-center">
                     <i class="fa-solid fa-shuffle text-xl opacity-30"></i>
                     <i class="fa-solid fa-backward-step text-3xl"></i>
@@ -119,7 +125,7 @@
             currentTime: 0, duration: 0, timer: null,
 
             initApp() {
-                this.fetchData('top tracks');
+                this.fetchData('top hits');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -134,23 +140,55 @@
                 this.activeTrack = song;
                 this.playerOpen = true;
                 this.isPlaying = true;
-                
+
+                // Set image and extract color
+                const img = document.getElementById('main-thumb');
+                img.src = song.thumbnail;
+                img.onload = () => this.updateThemeColor(img);
+
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById(song.id);
                 } else {
                     player = new YT.Player('youtube-player', {
                         height: '1', width: '1', videoId: song.id,
-                        playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1 },
-                        events: { 'onStateChange': (e) => this.handleState(e) }
+                        playerVars: { 'autoplay': 1, 'controls': 0 },
+                        events: { 'onStateChange': (e) => { if(e.data == 1) this.duration = Math.floor(player.getDuration()); } }
                     });
                 }
                 this.startTracking();
             },
 
-            handleState(e) {
-                if (e.data == YT.PlayerState.PLAYING) {
-                    this.duration = Math.floor(player.getDuration());
+            updateThemeColor(imgElement) {
+                const canvas = document.getElementById('colorCanvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = imgElement.naturalWidth || 50;
+                canvas.height = imgElement.naturalHeight || 50;
+                
+                ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                
+                let counts = {};
+                let maxCount = 0;
+                let dominant = 'rgb(18, 18, 18)';
+
+                // Sample pixels (step by 10 to save RAM)
+                for (let i = 0; i < imageData.length; i += 40) {
+                    let r = imageData[i];
+                    let g = imageData[i+1];
+                    let b = imageData[i+2];
+                    // Skip blacks/whites for better color vibrancy
+                    if ((r+g+b) < 100 || (r+g+b) > 700) continue; 
+                    
+                    let rgb = `rgb(${r},${g},${b})`;
+                    counts[rgb] = (counts[rgb] || 0) + 1;
+                    if (counts[rgb] > maxCount) {
+                        maxCount = counts[rgb];
+                        dominant = rgb;
+                    }
                 }
+                
+                document.getElementById('playerBody').style.backgroundColor = dominant;
+                document.getElementById('dynamicOverlay').style.color = dominant;
             },
 
             startTracking() {
@@ -162,16 +200,12 @@
                 }, 1000);
             },
 
-            seekMusic() {
-                if (player) player.seekTo(this.currentTime, true);
-            },
-
+            seekMusic() { if (player) player.seekTo(this.currentTime, true); },
             togglePlay() {
                 if (!player) return;
                 this.isPlaying = !this.isPlaying;
                 this.isPlaying ? player.playVideo() : player.pauseVideo();
             },
-
             formatTime(s) {
                 if (!s) return '0:00';
                 let m = Math.floor(s / 60);
