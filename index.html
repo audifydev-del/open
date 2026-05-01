@@ -9,8 +9,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Base theme starts dark, changes dynamically */
-        :root { --theme-color: #0a0a0a; }
+        :root { --theme-color: #0f0f0f; }
         [x-cloak] { display: none !important; }
         
         body, html { 
@@ -22,27 +21,25 @@
         .app-shell { 
             width: 100%; max-width: 450px; height: 100%; 
             position: relative; 
-            /* This makes the home page background change too! */
-            background-color: var(--theme-color); 
-            transition: background-color 1s ease;
+            /* This is the magic line that changes the home background */
+            background-color: var(--theme-color) !important; 
+            transition: background-color 0.8s ease-in-out;
             overflow: hidden;
         }
 
-        /* Home Page Layer */
         .home-page { 
             position: absolute; inset: 0;
             display: flex; flex-direction: column; z-index: 1;
-            /* Subtle gradient to keep top readable */
-            background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 30%);
+            /* Overlay to keep the text readable against bright colors */
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 100%);
         }
 
-        /* Player Overlay */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
-            transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
+            transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.8s ease;
             will-change: transform;
         }
 
@@ -53,29 +50,25 @@
         
         .artwork-overlay { 
             position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 50%, var(--theme-color) 100%); 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
             z-index: 2;
         }
 
-        .player-content { 
-            position: relative; z-index: 10; margin-top: auto;
-            padding: 0 30px 60px;
-        }
+        .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 60px; }
 
         input[type="range"].progress-bar { 
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.2); 
-            height: 4px; border-radius: 4px; outline: none;
+            height: 4px; border-radius: 10px; outline: none;
         }
         input[type="range"].progress-bar::-webkit-slider-thumb { 
-            -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
+            -webkit-appearance: none; height: 12px; width: 12px; background: #fff; border-radius: 50%; 
         }
 
-        /* Transparent cards to show the background color */
         .song-card { 
-            background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(10px);
-            border-radius: 12px; padding: 10px; 
-            border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(255, 255, 255, 0.04); 
+            backdrop-filter: blur(8px);
+            border-radius: 14px; padding: 10px; 
+            border: 1px solid rgba(255,255,255,0.08); 
         }
         
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
@@ -84,7 +77,7 @@
 </head>
 <body>
 
-<div x-data="audifyApp()" x-init="initApp()" class="app-shell">
+<div x-data="audifyApp()" x-init="initApp()" class="app-shell" id="appShell">
     <canvas id="colorCanvas"></canvas>
     
     <!-- HOME PAGE -->
@@ -93,7 +86,7 @@
             <h1 class="text-3xl font-black mb-4 tracking-tighter text-white">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
                    placeholder="Search..." 
-                   class="w-full bg-white/10 backdrop-blur-md rounded-xl py-3 px-5 text-white outline-none border border-white/10">
+                   class="w-full bg-white/10 rounded-xl py-3 px-5 text-white outline-none border border-white/5">
         </header>
 
         <main class="flex-grow overflow-y-auto px-4 pb-10">
@@ -102,7 +95,7 @@
                     <div class="song-card active:scale-95 transition-all" @click="playSong(song)">
                         <img :src="song.thumbnail" class="w-full aspect-square rounded-lg object-cover mb-2">
                         <p class="text-xs font-bold truncate text-white" x-text="song.title"></p>
-                        <p class="text-[10px] text-white/50 truncate" x-text="song.artist"></p>
+                        <p class="text-[10px] text-white/40 truncate" x-text="song.artist"></p>
                     </div>
                 </template>
             </div>
@@ -110,16 +103,14 @@
     </div>
 
     <!-- PLAYER -->
-    <div class="immersive-player" 
-         :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
-        
+    <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
-            <img :src="activeTrack?.thumbnail" id="main-thumb" crossorigin="anonymous">
+            <img :src="activeTrack?.thumbnail" id="player-thumb" crossorigin="anonymous">
             <div class="artwork-overlay"></div>
         </div>
 
         <div class="relative z-20 flex justify-between p-6 pt-10 text-white">
-            <button @click="playerOpen = false" class="p-2 active:opacity-50"><i class="fa-solid fa-chevron-down text-xl"></i></button>
+            <button @click="playerOpen = false" class="p-2"><i class="fa-solid fa-chevron-down text-xl"></i></button>
             <i class="fa-solid fa-ellipsis-vertical text-xl opacity-50 p-2"></i>
         </div>
 
@@ -131,7 +122,7 @@
 
             <div class="mb-8">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                <div class="flex justify-between mt-3 text-[10px] font-bold text-white/40 tracking-widest uppercase">
+                <div class="flex justify-between mt-3 text-[10px] font-bold text-white/30 tracking-widest uppercase">
                     <span x-text="formatTime(currentTime)">0:00</span>
                     <span x-text="formatTime(duration)">0:00</span>
                 </div>
@@ -172,7 +163,6 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
 
-                // ITUNES ARTWORK FETCH
                 const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song`;
                 
                 try {
@@ -182,7 +172,6 @@
                         const highRes = data.results[0].artworkUrl100.replace('100x100bb.jpg', '1000x1000bb.jpg');
                         this.activeTrack.thumbnail = highRes;
 
-                        // COLOR EXTRACTION
                         const img = new Image();
                         img.crossOrigin = "Anonymous";
                         img.src = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(highRes)}`;
@@ -200,27 +189,28 @@
                 }
                 
                 if(!this.intervalSet) {
-                    setInterval(() => { 
-                        if(player && this.isPlaying && player.getCurrentTime) 
-                            this.currentTime = Math.floor(player.getCurrentTime()); 
-                    }, 1000);
+                    setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
                     this.intervalSet = true;
                 }
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
                 const ctx = canvas.getContext('2d');
-                canvas.width = 10; canvas.height = 10;
-                ctx.drawImage(img, 0, 0, 10, 10);
-                const p = ctx.getImageData(0, 0, 10, 10).data;
+                canvas.width = 20; canvas.height = 20;
+                ctx.drawImage(img, 0, 0, 20, 20);
+                const data = ctx.getImageData(0, 0, 20, 20).data;
                 
                 let r=0, g=0, b=0;
-                for (let i=0; i<p.length; i+=4) { r += p[i]; g += p[i+1]; b += p[i+2]; }
-                r = Math.floor(r/25); g = Math.floor(g/25); b = Math.floor(b/25);
+                for (let i=0; i<data.length; i+=4) { r += data[i]; g += data[i+1]; b += data[i+2]; }
+                const pixelCount = data.length / 4;
+                r = Math.floor(r/pixelCount); g = Math.floor(g/pixelCount); b = Math.floor(b/pixelCount);
                 
-                // Adjusted darkening: slightly lighter than before for iTunes art
-                const finalColor = `rgb(${Math.max(15, r-30)}, ${Math.max(15, g-30)}, ${Math.max(15, b-30)})`;
-                document.documentElement.style.setProperty('--theme-color', finalColor);
+                // Darken specifically for the background effect
+                const color = `rgb(${Math.max(10, r-40)}, ${Math.max(10, g-40)}, ${Math.max(10, b-40)})`;
+                
+                // Update CSS Variable AND set the color explicitly to force a repaint
+                document.documentElement.style.setProperty('--theme-color', color);
+                document.getElementById('appShell').style.backgroundColor = color;
             },
             seekMusic() { if(player) player.seekTo(this.currentTime, true); },
             togglePlay() { 
