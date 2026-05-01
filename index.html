@@ -26,20 +26,18 @@
             transition: background-color 1s ease-in-out;
         }
 
-        /* MAIN SCROLLABLE PLAYER */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
-            overflow-y: auto;
-            scrollbar-width: none;
+            overflow: hidden;
         }
-        .immersive-player::-webkit-scrollbar { display: none; }
 
+        /* INCREASED ARTWORK SPACE */
         .artwork-container { 
-            position: relative; width: 100%; height: 45vh; min-height: 320px; shrink: 0;
+            position: relative; width: 100%; height: 50vh; min-height: 350px; shrink: 0;
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -48,53 +46,61 @@
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
         }
 
-        .player-content { padding: 0 30px 10px; shrink: 0; }
+        /* EXPANDED PLAYER CONTROLS AREA */
+        .player-content { 
+            padding: 20px 35px 30px; 
+            shrink: 0; 
+            flex-grow: 0;
+        }
 
-        /* LIQUID GLASS LYRICS SECTION */
+        /* LIQUID GLASS BOX - Better Spacing */
         .lyrics-section {
-            margin: 20px;
-            padding: 20px 0;
-            min-height: 80vh;
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 40px;
+            margin: 0 20px 25px;
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 35px;
             display: flex;
             flex-direction: column;
-            position: relative;
+            overflow: hidden;
         }
 
         .lyrics-scroll-box {
             flex-grow: 1;
-            padding: 0 40px; 
+            overflow-y: auto;
+            padding: 0 35px; 
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
         }
+        .lyrics-scroll-box::-webkit-scrollbar { display: none; }
 
-        .scroll-spacer { height: 35vh; }
+        .scroll-spacer { height: 20vh; }
 
         .lyric-line {
-            font-size: 1.8rem;
-            line-height: 1.2;
+            font-size: 1.7rem;
+            line-height: 1.25;
             font-weight: 900;
-            margin-bottom: 35px;
+            margin-bottom: 25px;
             transition: all 0.4s ease;
             color: rgba(255, 255, 255, 0.1);
         }
 
         .lyric-line.active { 
             color: #fff; 
-            transform: scale(1.04); 
+            transform: scale(1.03); 
             text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
 
         input[type="range"].progress-bar { 
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.15); 
-            height: 4px; border-radius: 10px; outline: none;
+            height: 6px; border-radius: 10px; outline: none;
         }
         input[type="range"].progress-bar::-webkit-slider-thumb { 
-            -webkit-appearance: none; height: 16px; width: 16px; background: #fff; border-radius: 50%; 
+            -webkit-appearance: none; height: 18px; width: 18px; background: #fff; border-radius: 50%; 
         }
 
         .dot-pulse {
@@ -143,35 +149,35 @@
         </div>
 
         <div class="player-content text-white">
-            <div class="mb-4">
-                <h2 class="text-2xl font-black truncate" x-text="activeTrack?.title"></h2>
-                <p class="text-lg text-white/50 font-bold" x-text="activeTrack?.artist"></p>
+            <div class="mb-8">
+                <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
+                <p class="text-xl text-white/50 font-bold" x-text="activeTrack?.artist"></p>
             </div>
 
-            <div class="mb-6">
+            <div class="mb-10">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                <div class="flex justify-between mt-2 text-[10px] font-bold text-white/20">
+                <div class="flex justify-between mt-3 text-xs font-bold text-white/20">
                     <span x-text="formatTime(currentTime)">0:00</span>
                     <span x-text="formatTime(duration)">0:00</span>
                 </div>
             </div>
 
-            <div class="flex justify-between items-center mb-6">
-                <i class="fa-solid fa-shuffle text-lg opacity-20"></i>
-                <i class="fa-solid fa-backward-step text-2xl"></i>
-                <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center">
-                    <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+            <div class="flex justify-between items-center px-4">
+                <i class="fa-solid fa-shuffle text-xl opacity-20"></i>
+                <i class="fa-solid fa-backward-step text-3xl"></i>
+                <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
+                    <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                 </button>
-                <i class="fa-solid fa-forward-step text-2xl"></i>
-                <i class="fa-solid fa-repeat text-lg opacity-20"></i>
+                <i class="fa-solid fa-forward-step text-3xl"></i>
+                <i class="fa-solid fa-repeat text-xl opacity-20"></i>
             </div>
         </div>
 
-        <!-- LYRICS SECTION (Liquid Glass) -->
-        <div class="lyrics-section" id="lyricsSection">
-            <div class="flex justify-between items-center px-10 py-2">
-                <p class="text-[9px] font-black uppercase tracking-widest text-white/20">Synced Lyrics</p>
-                <button @click="showLyricsList = true" class="text-[9px] font-black uppercase bg-white/5 px-3 py-1 rounded-full text-white/40" x-show="lyricsVersions.length > 0">Versions</button>
+        <!-- LYRICS SECTION (Liquid Glass Box) -->
+        <div class="lyrics-section">
+            <div class="flex justify-between items-center px-8 py-4">
+                <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Synced Lyrics</p>
+                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-4 py-1.5 rounded-full text-white/60" x-show="lyricsVersions.length > 0">Versions</button>
             </div>
 
             <div class="lyrics-scroll-box" id="lyricsScrollBox">
@@ -250,14 +256,11 @@
             },
             scrollLyrics(index) {
                 const line = document.getElementById('line-' + index);
-                const container = document.getElementById('mainPlayer');
+                const box = document.getElementById('lyricsScrollBox');
                 
-                if (line && container) {
-                    // Only snap scroll if the user is currently scrolled down to the lyrics section
-                    if (container.scrollTop > 250) {
-                        const targetPos = line.offsetTop - (container.clientHeight / 2) + (line.clientHeight / 2);
-                        container.scrollTo({ top: targetPos, behavior: 'smooth' });
-                    }
+                if (line && box) {
+                    const targetPos = line.offsetTop - (box.clientHeight / 2) + (line.clientHeight / 2);
+                    box.scrollTo({ top: targetPos, behavior: 'smooth' });
                 }
             },
             async playSong(song) {
