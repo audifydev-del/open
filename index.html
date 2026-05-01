@@ -18,40 +18,51 @@
             justify-content: center; align-items: center; overflow: hidden;
         }
 
-        /* The Box that stays portrait regardless of screen orientation */
         .app-container { 
             width: 100%; max-width: 450px; height: 100%; 
             position: relative; background: #000; overflow: hidden;
-            display: grid; grid-template-areas: "stack";
         }
 
-        /* Both Home and Player occupy the same grid area */
-        .page-layer { grid-area: stack; width: 100%; height: 100%; }
-
+        /* Home Page Styling */
         .home-page { 
-            display: flex; flex-direction: column; z-index: 1; 
+            width: 100%; height: 100%; display: flex; flex-direction: column; 
         }
 
+        /* Player Overlay */
         .immersive-player {
             position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.8s ease;
         }
 
-        .artwork-container { position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1; }
+        .artwork-container { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 60%; 
+        }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         .artwork-overlay { 
             position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 40%, var(--theme-color) 100%); 
-            z-index: 2; 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 40%, var(--theme-color) 95%); 
         }
 
-        .player-content { position: relative; z-index: 10; margin-top: auto; padding: 0 30px 60px; }
+        /* Content Layering */
+        .player-content { 
+            position: relative; z-index: 10; height: 100%;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 0 30px 60px;
+        }
 
-        input[type="range"].progress-bar { width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; outline: none; }
-        input[type="range"].progress-bar::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; }
+        /* Timeline / Progress Bar */
+        .timeline-box { width: 100%; margin-bottom: 30px; }
+        input[type="range"].progress-bar { 
+            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.15); 
+            height: 4px; border-radius: 10px; outline: none;
+        }
+        input[type="range"].progress-bar::-webkit-slider-thumb { 
+            -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
 
         .song-card { background: #0f0f0f; border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); }
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
@@ -63,8 +74,8 @@
 <div x-data="audifyApp()" x-init="initApp()" class="app-container">
     <canvas id="colorCanvas"></canvas>
     
-    <!-- HOME PAGE LAYER -->
-    <div class="page-layer home-page">
+    <!-- HOME PAGE -->
+    <div class="home-page">
         <header class="p-6 shrink-0">
             <h1 class="text-3xl font-black mb-4 tracking-tighter text-white">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
@@ -72,11 +83,11 @@
                    class="w-full bg-zinc-900 rounded-xl py-3 px-5 text-white outline-none">
         </header>
 
-        <main class="flex-grow overflow-y-auto px-4 pb-10">
+        <main class="flex-grow overflow-y-auto px-4 pb-20">
             <div class="grid grid-cols-2 gap-4">
                 <template x-for="song in songs" :key="song.id">
                     <div class="song-card active:scale-95 transition-all" @click="playSong(song)">
-                        <img :src="song.thumbnail" class="w-full aspect-square rounded-lg object-cover mb-2" crossorigin="anonymous">
+                        <img :src="song.thumbnail" class="w-full aspect-square rounded-lg object-cover mb-2">
                         <p class="text-xs font-bold truncate text-white" x-text="song.title"></p>
                         <p class="text-[10px] text-zinc-500 truncate" x-text="song.artist"></p>
                     </div>
@@ -85,8 +96,8 @@
         </main>
     </div>
 
-    <!-- PLAYER LAYER -->
-    <div class="page-layer immersive-player" 
+    <!-- PLAYER -->
+    <div class="immersive-player" 
          :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         
         <div class="artwork-container">
@@ -94,30 +105,34 @@
             <div class="artwork-overlay"></div>
         </div>
 
+        <!-- Top Actions -->
         <div class="relative z-20 flex justify-between p-6 pt-10 text-white">
             <button @click="playerOpen = false" class="p-2"><i class="fa-solid fa-chevron-down text-xl"></i></button>
             <i class="fa-solid fa-ellipsis-vertical text-xl opacity-50 p-2"></i>
         </div>
 
         <div class="player-content text-white">
+            <!-- Song Info -->
             <div class="mb-10">
-                <h2 class="text-2xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
-                <p class="text-lg text-white/60 font-bold" x-text="activeTrack?.artist"></p>
+                <h2 class="text-3xl font-black truncate mb-1" x-text="activeTrack?.title"></h2>
+                <p class="text-xl text-white/50 font-bold" x-text="activeTrack?.artist"></p>
             </div>
 
-            <div class="mb-8">
+            <!-- Timeline -->
+            <div class="timeline-box">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
-                <div class="flex justify-between mt-3 text-[10px] font-bold text-white/40 tracking-widest uppercase">
+                <div class="flex justify-between mt-3 text-[11px] font-bold text-white/40 tracking-wider">
                     <span x-text="formatTime(currentTime)">0:00</span>
                     <span x-text="formatTime(duration)">0:00</span>
                 </div>
             </div>
 
+            <!-- Controls -->
             <div class="flex justify-between items-center px-2">
                 <i class="fa-solid fa-shuffle text-xl opacity-20"></i>
                 <i class="fa-solid fa-backward-step text-3xl"></i>
-                <button @click="togglePlay()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
-                    <i class="fa-solid text-2xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+                <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+                    <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                 </button>
                 <i class="fa-solid fa-forward-step text-3xl"></i>
                 <i class="fa-solid fa-repeat text-xl opacity-20"></i>
@@ -148,7 +163,7 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
 
-                // Color extraction with proxy
+                // Enhanced Color extraction using proxy to bypass CORS
                 const proxy = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(song.thumbnail)}`;
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
@@ -159,31 +174,34 @@
                 else { 
                     player = new YT.Player('youtube-player', { 
                         height: '1', width: '1', videoId: song.id, 
-                        events: { 'onStateChange': (e) => { if(e.data==1) this.duration = Math.floor(player.getDuration()); } } 
+                        events: { 'onStateChange': (e) => { 
+                            if(e.data == YT.PlayerState.PLAYING) this.duration = Math.floor(player.getDuration()); 
+                        } } 
                     }); 
                 }
-                setInterval(() => { if(player && this.isPlaying) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
+                setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
             },
             extractColor(img) {
                 const canvas = document.getElementById('colorCanvas');
                 const ctx = canvas.getContext('2d');
                 canvas.width = 10; canvas.height = 10;
                 ctx.drawImage(img, 0, 0, 10, 10);
-                const pixels = ctx.getImageData(0, 0, 10, 10).data;
+                const p = ctx.getImageData(0, 0, 10, 10).data;
                 
                 let r=0, g=0, b=0;
-                for (let i=0; i<pixels.length; i+=4) {
-                    r += pixels[i]; g += pixels[i+1]; b += pixels[i+2];
-                }
-                const count = pixels.length / 4;
-                r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count);
+                for (let i=0; i<p.length; i+=4) { r += p[i]; g += p[i+1]; b += p[i+2]; }
+                r = Math.floor(r/25); g = Math.floor(g/25); b = Math.floor(b/25);
                 
-                // Darken for contrast
-                const finalColor = `rgb(${Math.max(10, r-30)}, ${Math.max(10, g-30)}, ${Math.max(10, b-30)})`;
-                document.documentElement.style.setProperty('--theme-color', finalColor);
+                // Set the theme color
+                const color = `rgb(${Math.max(15, r-20)}, ${Math.max(15, g-20)}, ${Math.max(15, b-20)})`;
+                document.documentElement.style.setProperty('--theme-color', color);
             },
-            seekMusic() { player.seekTo(this.currentTime, true); },
-            togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
+            seekMusic() { if(player) player.seekTo(this.currentTime, true); },
+            togglePlay() { 
+                if(!player) return;
+                this.isPlaying = !this.isPlaying; 
+                this.isPlaying ? player.playVideo() : player.pauseVideo(); 
+            },
             formatTime(s) { if(!s) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
