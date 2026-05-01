@@ -46,28 +46,43 @@
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
         }
 
-        .player-content { padding: 0 30px 40px; min-height: 100vh; display: flex; flex-direction: column; }
+        .player-content { padding: 0 30px 40px; }
+
+        /* FULL SCREEN LYRICS OVERLAY */
+        .lyrics-section {
+            width: 100%;
+            height: 100vh; /* Cover whole screen */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.2));
+        }
 
         .lyrics-scroll-box {
             flex-grow: 1;
-            height: 70vh;
             overflow-y: auto;
-            padding: 35vh 0;
+            padding: 45vh 30px; /* Large padding to ensure lines center on screen */
             scrollbar-width: none;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
         }
         .lyrics-scroll-box::-webkit-scrollbar { display: none; }
 
         .lyric-line {
-            font-size: 1.8rem;
+            font-size: 2rem;
             line-height: 1.2;
             font-weight: 900;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            color: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.1);
+            filter: blur(1px);
         }
-        .lyric-line.active { color: #fff; transform: scale(1.08); }
+        .lyric-line.active { 
+            color: #fff; 
+            transform: scale(1.1); 
+            filter: blur(0px);
+            text-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
 
         input[type="range"].progress-bar { 
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.2); 
@@ -80,7 +95,7 @@
         .lyrics-modal {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #1a1a1a; border-radius: 30px 30px 0 0;
-            padding: 30px; z-index: 200;
+            padding: 30px; z-index: 300;
             max-height: 60vh; overflow-y: auto;
         }
 
@@ -114,6 +129,7 @@
 
     <!-- PLAYER PAGE -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
+        <!-- Top Half: Artwork & Controls -->
         <div class="artwork-container">
             <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
             <div class="artwork-overlay"></div>
@@ -146,10 +162,13 @@
                 <i class="fa-solid fa-forward-step text-3xl"></i>
                 <i class="fa-solid fa-repeat text-xl opacity-20"></i>
             </div>
+        </div>
 
-            <div class="flex justify-between items-center px-2">
+        <!-- FULL SCREEN LYRICS SECTION -->
+        <div class="lyrics-section">
+            <div class="flex justify-between items-center px-8 py-4">
                 <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Lyrics</p>
-                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50" x-show="lyricsVersions.length > 0">Change Version</button>
+                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50" x-show="lyricsVersions.length > 0">Version Selector</button>
             </div>
 
             <div class="lyrics-scroll-box" id="lyricsScrollBox">
@@ -159,23 +178,23 @@
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
-                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center py-10" x-text="lyricsStatus"></div>
+                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center py-20" x-text="lyricsStatus"></div>
             </div>
         </div>
     </div>
 
-    <!-- LYRICS SELECTION LIST -->
-    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/60 z-[250] flex items-end">
+    <!-- VERSION SELECTOR MODAL -->
+    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/80 z-[400] flex items-end">
         <div class="lyrics-modal w-full">
-            <h3 class="text-white font-black text-xl mb-6">Available Lyrics</h3>
+            <h3 class="text-white font-black text-xl mb-6">Match Lyrics by Length</h3>
             <div class="space-y-4">
                 <template x-for="item in lyricsVersions" :key="item.id">
-                    <div @click="selectLyrics(item)" class="p-4 rounded-2xl flex justify-between items-center cursor-pointer" :class="selectedLyricsId === item.id ? 'bg-white/20 border border-white/30' : 'bg-white/5'">
+                    <div @click="selectLyrics(item)" class="p-5 rounded-2xl flex justify-between items-center cursor-pointer" :class="selectedLyricsId === item.id ? 'bg-white/20 border border-white/30' : 'bg-white/5'">
                         <div>
-                            <p class="text-white font-bold text-sm" x-text="item.trackName"></p>
-                            <p class="text-white/40 text-xs" x-text="'Duration: ' + formatTime(item.duration)"></p>
+                            <p class="text-white font-bold" x-text="item.trackName"></p>
+                            <p class="text-white/40 text-xs mt-1" x-text="'Duration: ' + formatTime(item.duration)"></p>
                         </div>
-                        <i x-show="selectedLyricsId === item.id" class="fa-solid fa-circle-check text-white"></i>
+                        <i x-show="selectedLyricsId === item.id" class="fa-solid fa-check-circle text-white"></i>
                     </div>
                 </template>
             </div>
@@ -194,10 +213,10 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
-            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, lyricsStatus: 'Fetching lyrics...',
+            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, lyricsStatus: 'Fetching...',
 
             initApp() {
-                this.fetchData('Trending');
+                this.fetchData('Latest Music');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -230,9 +249,9 @@
                 this.parsedLyrics = [];
                 this.lyricsVersions = [];
                 this.lastIndex = -1;
-                this.lyricsStatus = 'Searching for lyrics...';
+                this.lyricsStatus = 'Searching for sync...';
 
-                // iTunes Artwork
+                // iTunes for Artwork
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
                 const onData = (e) => {
@@ -247,7 +266,7 @@
                 window.addEventListener('itunes-data', onData);
                 document.body.appendChild(script);
 
-                // Youtube/Lyrics
+                // Youtube Setup
                 if (player && player.loadVideoById) {
                     player.loadVideoById(song.id);
                 } else {
@@ -271,26 +290,20 @@
             },
             async getLyricsList(artist, title) {
                 try {
-                    // Step 1: Broad Search
-                    const url = `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
-                    const res = await fetch(url);
+                    const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
                     const data = await res.json();
-                    
-                    this.lyricsVersions = data.filter(l => l.syncedLyrics && l.syncedLyrics.length > 0);
+                    this.lyricsVersions = data.filter(l => l.syncedLyrics);
                     
                     if(this.lyricsVersions.length > 0) {
-                        // Find closest match to duration
+                        // Closest length logic
                         let closest = this.lyricsVersions.reduce((prev, curr) => {
                             return (Math.abs(curr.duration - this.duration) < Math.abs(prev.duration - this.duration) ? curr : prev);
                         });
                         this.selectLyrics(closest);
                     } else {
-                        this.lyricsStatus = 'No synced lyrics found for this track.';
+                        this.lyricsStatus = 'No synced lyrics found.';
                     }
-                } catch (e) { 
-                    this.lyricsStatus = 'Error loading lyrics.';
-                    console.error(e);
-                }
+                } catch (e) { this.lyricsStatus = 'Lyrics search failed.'; }
             },
             selectLyrics(version) {
                 this.selectedLyricsId = version.id;
