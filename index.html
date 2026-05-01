@@ -25,14 +25,13 @@
             transition: background-color 1s ease-in-out;
         }
 
-        /* MAIN SCROLLABLE PLAYER AREA */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
-            overflow-y: auto; /* The whole player scrolls */
+            overflow-y: auto;
             scrollbar-width: none;
         }
         .immersive-player::-webkit-scrollbar { display: none; }
@@ -47,29 +46,35 @@
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
         }
 
-        .player-content { padding: 0 30px 40px; }
+        .player-content { padding: 0 30px 40px; min-height: 100vh; display: flex; flex-direction: column; }
 
-        /* INDEPENDENT SCROLLABLE LYRICS BOX */
+        /* FULL SCREEN INVISIBLE LYRICS BOX */
         .lyrics-scroll-box {
-            height: 350px; /* Fixed height for the inner scroll */
+            flex-grow: 1;
+            height: 80vh; /* Covers most of the screen height */
             overflow-y: auto;
-            margin-top: 40px;
-            padding: 20px 0;
+            margin-top: 20px;
+            padding: 40vh 0; /* Padding allows the first and last lines to center */
             scrollbar-width: none;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
         }
         .lyrics-scroll-box::-webkit-scrollbar { display: none; }
 
         .lyric-line {
-            font-size: 1.7rem;
-            line-height: 1.3;
-            font-weight: 800;
-            margin-bottom: 28px;
-            transition: all 0.4s ease;
+            font-size: 1.8rem;
+            line-height: 1.2;
+            font-weight: 900;
+            margin-bottom: 32px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             color: rgba(255, 255, 255, 0.15);
+            transform-origin: left center;
         }
-        .lyric-line.active { color: #fff; transform: scale(1.05); }
+        .lyric-line.active { 
+            color: #fff; 
+            transform: scale(1.1); 
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
 
         input[type="range"].progress-bar { 
             width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.2); 
@@ -107,7 +112,7 @@
         </main>
     </div>
 
-    <!-- SCROLLABLE PLAYER PAGE -->
+    <!-- PLAYER PAGE -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
             <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
@@ -116,7 +121,6 @@
         </div>
 
         <div class="player-content text-white">
-            <!-- Header Info -->
             <div class="mb-8 flex justify-between items-end">
                 <div>
                     <h2 class="text-3xl font-black truncate w-64" x-text="activeTrack?.title"></h2>
@@ -125,7 +129,6 @@
                 <i class="fa-regular fa-heart text-2xl opacity-40 mb-2"></i>
             </div>
 
-            <!-- Progress -->
             <div class="mb-10">
                 <input type="range" class="progress-bar" min="0" :max="duration" x-model="currentTime" @input="seekMusic">
                 <div class="flex justify-between mt-3 text-[11px] font-bold text-white/30">
@@ -134,8 +137,7 @@
                 </div>
             </div>
 
-            <!-- Controls -->
-            <div class="flex justify-between items-center mb-16">
+            <div class="flex justify-between items-center mb-12">
                 <i class="fa-solid fa-shuffle text-xl opacity-20"></i>
                 <i class="fa-solid fa-backward-step text-3xl"></i>
                 <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center">
@@ -145,8 +147,7 @@
                 <i class="fa-solid fa-repeat text-xl opacity-20"></i>
             </div>
 
-            <!-- THE INVISIBLE SCROLL BOX FOR LYRICS -->
-            <p class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Lyrics</p>
+            <!-- FULL SCREEN LYRICS WINDOW -->
             <div class="lyrics-scroll-box" id="lyricsScrollBox">
                 <template x-for="(line, index) in parsedLyrics" :key="index">
                     <div class="lyric-line" 
@@ -154,7 +155,7 @@
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
-                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic">No lyrics found</div>
+                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center">Lyrics unavailable</div>
             </div>
         </div>
     </div>
@@ -172,7 +173,7 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
             initApp() {
-                this.fetchData('Top Hits');
+                this.fetchData('Trending');
                 let tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
                 document.head.appendChild(tag);
@@ -194,6 +195,7 @@
                 const line = document.getElementById('line-' + index);
                 const box = document.getElementById('lyricsScrollBox');
                 if (line && box) {
+                    // Center the line in the middle of the box
                     const targetPos = line.offsetTop - box.offsetTop - (box.clientHeight / 2) + (line.clientHeight / 2);
                     box.scrollTo({ top: targetPos, behavior: 'smooth' });
                 }
@@ -233,7 +235,7 @@
                     });
                 }
                 if(!this.intv) {
-                    setInterval(() => { if(player && this.isPlaying) this.currentTime = player.getCurrentTime(); }, 300);
+                    setInterval(() => { if(player && this.isPlaying) this.currentTime = player.getCurrentTime(); }, 250);
                     this.intv = true;
                 }
             },
