@@ -38,62 +38,34 @@
             overflow: hidden; 
         }
 
-        /* VERTICAL CONTAINER - SNAPPING REMOVED FROM CSS TO FIX STICKINESS */
         #verticalScrollContainer {
             height: 100vh;
             overflow-y: auto;
             scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
         }
         #verticalScrollContainer::-webkit-scrollbar { display: none; }
 
         .main-view {
-            height: 100vh;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
+            height: 100vh; width: 100%;
+            display: flex; flex-direction: column; flex-shrink: 0;
             padding-bottom: 40px;
         }
 
-        .artwork-container { 
-            position: relative; width: 100%; height: 55vh; shrink: 0;
-        }
+        .artwork-container { position: relative; width: 100%; height: 55vh; shrink: 0; }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .artwork-overlay { 
-            position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 60%, var(--theme-color) 100%); 
-        }
+        .artwork-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 60%, var(--theme-color) 100%); }
 
-        .player-content { 
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 0 35px;
-            text-align: center;
-        }
-
-        .song-title {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-            display: block;
-        }
+        .player-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 35px; text-align: center; }
+        .song-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; display: block; }
 
         .lyrics-section {
-            height: 100vh;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
+            height: 100vh; flex-shrink: 0;
+            display: flex; flex-direction: column;
             background: var(--theme-color);
             padding-top: 20px;
         }
 
-        /* THE INVISIBLE SCROLLABLE WINDOW */
         .lyrics-scroll-window {
             flex-grow: 1;
             overflow-y: auto;
@@ -106,45 +78,18 @@
         .lyrics-scroll-window::-webkit-scrollbar { display: none; }
 
         .lyric-line {
-            font-size: 2.2rem;
-            line-height: 1.2;
-            font-weight: 900;
-            margin-bottom: 35px;
-            transition: all 0.4s ease;
-            color: rgba(255, 255, 255, 0.15);
-            text-align: left;
+            font-size: 2.2rem; line-height: 1.2; font-weight: 900;
+            margin-bottom: 35px; transition: all 0.4s ease;
+            color: rgba(255, 255, 255, 0.15); text-align: left;
         }
 
-        .lyric-line.active { 
-            color: #fff; 
-            transform: scale(1.05); 
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-        }
+        .lyric-line.active { color: #fff; transform: scale(1.05); text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
 
-        input[type="range"].progress-bar { 
-            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.15); 
-            height: 6px; border-radius: 10px; outline: none;
-        }
-        input[type="range"].progress-bar::-webkit-slider-thumb { 
-            -webkit-appearance: none; height: 20px; width: 20px; background: #fff; border-radius: 50%; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
+        input[type="range"].progress-bar { width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.15); height: 6px; border-radius: 10px; outline: none; }
+        input[type="range"].progress-bar::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; background: #fff; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
-        .scroll-indicator {
-            margin-top: auto;
-            opacity: 0.3;
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-5px);}
-            60% {transform: translateY(-3px);}
-        }
+        .scroll-indicator { margin-top: auto; opacity: 0.3; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-5px);} 60% {transform: translateY(-3px);} }
 
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
         canvas { display: none; }
@@ -175,8 +120,8 @@
 
     <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div id="verticalScrollContainer" @scroll.passive="handleMainScroll">
-            <!-- PAGE 1 -->
-            <div class="main-view text-white" id="playerView">
+            <!-- PAGE 1: PLAYER -->
+            <div class="main-view text-white">
                 <div class="artwork-container">
                     <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArtwork">
                     <div class="artwork-overlay"></div>
@@ -205,16 +150,18 @@
                 </div>
             </div>
 
-            <!-- PAGE 2 -->
-            <div class="lyrics-section" id="lyricsView">
+            <!-- PAGE 2: LYRICS WINDOW -->
+            <div class="lyrics-section">
                 <div class="flex items-center px-10 py-4 border-b border-white/5 mb-2">
                     <p class="text-[10px] font-black uppercase tracking-[3px] text-white/40">Lyrics</p>
-                    <div class="ml-auto flex gap-4">
+                    <div class="ml-auto">
                         <button @click="showLyricsList = true" class="text-[10px] font-black bg-white/5 px-4 py-2 rounded-full text-white/60" x-show="lyricsVersions.length > 0">Versions</button>
                     </div>
                 </div>
-                <div class="lyrics-scroll-window" id="lyricsWindow" @scroll="handleLyricsScroll">
-                    <div class="h-[30vh]"></div>
+                <div class="lyrics-scroll-window" id="lyricsWindow" 
+                     @touchstart="isUserScrollingLyrics = true" 
+                     @scroll="handleLyricsScroll">
+                    <div class="h-[35vh]"></div>
                     <div class="lyrics-container">
                         <template x-for="(line, index) in parsedLyrics" :key="index">
                             <div class="lyric-line" :id="'line-' + index" :class="{ 'active': isLineActive(index) }" x-text="line.text"></div>
@@ -226,7 +173,7 @@
         </div>
     </div>
 
-    <!-- MODAL -->
+    <!-- VERSION MODAL -->
     <div x-show="showLyricsList" x-cloak class="fixed inset-0 bg-black/95 z-[600] p-10 flex flex-col justify-center">
         <h3 class="text-white font-black text-2xl mb-8">Choose Version</h3>
         <div class="space-y-4 overflow-y-auto pr-2">
@@ -272,9 +219,11 @@
                 return active;
             },
             handleLyricsScroll() {
+                // If the user is scrolling, stop the automatic centering
                 this.isUserScrollingLyrics = true;
                 clearTimeout(this.lyricsScrollTimeout);
-                this.lyricsScrollTimeout = setTimeout(() => { this.isUserScrollingLyrics = false; }, 3000);
+                // Wait 4 seconds of inactivity before snapping back to current line
+                this.lyricsScrollTimeout = setTimeout(() => { this.isUserScrollingLyrics = false; }, 4000);
             },
             syncLyricsScroll(index) {
                 if (this.isUserScrollingLyrics || index === this.lastIndex) return;
@@ -284,20 +233,17 @@
                     this.lastIndex = index;
                 }
             },
-            // MANUAL SNAP LOGIC for the Main Player
             handleMainScroll(e) {
                 clearTimeout(this.mainScrollTimeout);
                 this.mainScrollTimeout = setTimeout(() => {
                     const container = e.target;
                     const scrollPos = container.scrollTop;
                     const vh = window.innerHeight;
-                    
-                    // If scrolled more than 20% toward lyrics, snap to lyrics, otherwise snap back to player
                     if (scrollPos > 0 && scrollPos < vh) {
-                        const target = scrollPos > vh * 0.2 ? vh : 0;
+                        const target = scrollPos > vh * 0.3 ? vh : 0;
                         container.scrollTo({ top: target, behavior: 'smooth' });
                     }
-                }, 150); // Small delay to wait for scroll to finish
+                }, 100);
             },
             closePlayer() {
                 this.playerOpen = false;
@@ -306,7 +252,7 @@
             async playSong(song) {
                 this.activeTrack = JSON.parse(JSON.stringify(song)); 
                 this.playerOpen = true; this.isPlaying = true; this.parsedLyrics = [];
-                this.currentTime = 0; this.lastIndex = -1;
+                this.currentTime = 0; this.lastIndex = -1; this.isUserScrollingLyrics = false;
                 
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
@@ -356,6 +302,7 @@
                     return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() } : null;
                 }).filter(l => l && l.text);
                 this.showLyricsList = false;
+                this.lastIndex = -1;
             },
             togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
             seekMusic() { player.seekTo(this.currentTime, true); },
