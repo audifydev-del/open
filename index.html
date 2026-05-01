@@ -26,17 +26,21 @@
             transition: background-color 1s ease-in-out;
         }
 
+        /* FIXED: Main player is now scrollable */
         .immersive-player {
             position: absolute; inset: 0;
             background-color: var(--theme-color); 
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
-            overflow: hidden;
+            overflow-y: auto; /* Re-enabled scrolling */
+            scroll-snap-type: y proximity;
         }
+        .immersive-player::-webkit-scrollbar { display: none; }
 
         .artwork-container { 
-            position: relative; width: 100%; height: 40vh; min-height: 280px; shrink: 0;
+            position: relative; width: 100%; height: 45vh; min-height: 320px; shrink: 0;
+            scroll-snap-align: start;
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -45,34 +49,32 @@
             background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 40%, var(--theme-color) 100%); 
         }
 
-        .player-content { padding: 0 30px 10px; shrink: 0; }
+        .player-content { padding: 0 30px 20px; shrink: 0; }
 
         .lyrics-section {
-            flex-grow: 1;
+            width: 100%;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             position: relative;
-            overflow: hidden;
+            scroll-snap-align: start;
         }
 
         .lyrics-scroll-box {
             flex-grow: 1;
-            overflow-y: auto;
             padding: 0 60px; 
-            scrollbar-width: none;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
         }
-        .lyrics-scroll-box::-webkit-scrollbar { display: none; }
 
-        .scroll-spacer { height: 45vh; }
+        .scroll-spacer { height: 40vh; }
 
         .lyric-line {
-            font-size: 2.1rem;
-            line-height: 1.1;
+            font-size: 2rem;
+            line-height: 1.2;
             font-weight: 900;
-            margin-bottom: 45px;
-            transition: color 0.4s ease, transform 0.4s ease, filter 0.4s ease;
+            margin-bottom: 40px;
+            transition: all 0.4s ease;
             color: rgba(255, 255, 255, 0.1);
             filter: blur(1px);
         }
@@ -121,7 +123,7 @@
     </div>
 
     <!-- PLAYER PAGE -->
-    <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
+    <div class="immersive-player" id="mainPlayer" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
             <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
             <div class="artwork-overlay"></div>
@@ -153,11 +155,9 @@
             </div>
         </div>
 
-        <div class="lyrics-section">
-            <div class="lyrics-scroll-box" id="lyricsScrollBox" 
-                 @touchstart="userIsTouching = true" 
-                 @touchend="userIsTouching = false; checkSnapBack()"
-                 @scroll="handleScroll()">
+        <!-- LYRICS SECTION -->
+        <div class="lyrics-section" id="lyricsSection">
+            <div class="lyrics-scroll-box">
                 <div class="scroll-spacer"></div>
                 <template x-for="(line, index) in parsedLyrics" :key="index">
                     <div class="lyric-line" 
@@ -181,7 +181,6 @@
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
-            isSyncing: false, userIsTouching: false, isAutoScrolling: true,
 
             initApp() {
                 this.fetchData('Trending');
@@ -193,42 +192,32 @@
                 const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
                 this.songs = await res.json();
             },
-            handleScroll() {
-                // If the user scrolls away significantly, stop auto-scrolling
-                if (!this.userIsTouching) return;
-                this.isAutoScrolling = false;
-            },
-            checkSnapBack() {
-                // If user stops touching and they are near the active line, re-enable auto-scroll
-                const box = document.getElementById('lyricsScrollBox');
-                const activeLine = document.getElementById('line-' + this.lastIndex);
-                if (activeLine && box) {
-                    const diff = Math.abs((activeLine.offsetTop - box.scrollTop) - (box.clientHeight / 2));
-                    if (diff < 150) this.isAutoScrolling = true;
-                }
-            },
             isLineActive(index) {
                 const active = this.currentTime >= this.parsedLyrics[index].time && 
                              (this.parsedLyrics[index+1] ? this.currentTime < this.parsedLyrics[index+1].time : true);
                 if(active && this.lastIndex !== index) {
                     this.lastIndex = index;
-                    if(this.isAutoScrolling) this.scrollLyrics(index);
+                    this.scrollLyrics(index);
                 }
                 return active;
             },
             scrollLyrics(index) {
                 const line = document.getElementById('line-' + index);
-                const box = document.getElementById('lyricsScrollBox');
-                if (line && box) {
-                    const targetPos = line.offsetTop - (box.clientHeight / 2) + (line.clientHeight / 2);
-                    box.scrollTo({ top: targetPos, behavior: 'smooth' });
+                const container = document.getElementById('mainPlayer');
+                const section = document.getElementById('lyricsSection');
+                
+                if (line && container) {
+                    // Only auto-scroll if the user is actually looking at the lyrics section
+                    if (container.scrollTop > 200) {
+                        const targetPos = line.offsetTop - (container.clientHeight / 2) + (line.clientHeight / 2);
+                        container.scrollTo({ top: targetPos, behavior: 'smooth' });
+                    }
                 }
             },
             async playSong(song) {
                 this.activeTrack = JSON.parse(JSON.stringify(song)); 
                 this.playerOpen = true;
                 this.isPlaying = true;
-                this.isAutoScrolling = true;
                 this.parsedLyrics = [];
                 this.lastIndex = -1;
 
@@ -282,7 +271,7 @@
                 document.getElementById('appShell').style.backgroundColor = color;
             },
             togglePlay() { this.isPlaying = !this.isPlaying; this.isPlaying ? player.playVideo() : player.pauseVideo(); },
-            seekMusic() { player.seekTo(this.currentTime, true); this.isAutoScrolling = true; },
+            seekMusic() { player.seekTo(this.currentTime, true); },
             formatTime(s) { if(!s || s < 0) return '0:00'; let m=Math.floor(s/60), sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
         }
     }
