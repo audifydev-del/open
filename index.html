@@ -37,7 +37,7 @@
         .immersive-player::-webkit-scrollbar { display: none; }
 
         .artwork-container { 
-            position: relative; width: 100%; height: 55vh; min-height: 380px; shrink: 0;
+            position: relative; width: 100%; height: 50vh; min-height: 350px; shrink: 0;
         }
         .artwork-container img { width: 100%; height: 100%; object-fit: cover; }
         
@@ -48,7 +48,6 @@
 
         .player-content { padding: 0 30px 40px; min-height: 100vh; display: flex; flex-direction: column; }
 
-        /* FULL SCREEN INVISIBLE LYRICS BOX */
         .lyrics-scroll-box {
             flex-grow: 1;
             height: 70vh;
@@ -78,7 +77,6 @@
             -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
         }
 
-        /* LYRICS LIST MODAL */
         .lyrics-modal {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #1a1a1a; border-radius: 30px 30px 0 0;
@@ -149,13 +147,11 @@
                 <i class="fa-solid fa-repeat text-xl opacity-20"></i>
             </div>
 
-            <!-- LYRICS SECTION HEADER -->
             <div class="flex justify-between items-center px-2">
                 <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Lyrics</p>
-                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50">Change Version</button>
+                <button @click="showLyricsList = true" class="text-[10px] font-black uppercase bg-white/10 px-3 py-1 rounded-full text-white/50" x-show="lyricsVersions.length > 0">Change Version</button>
             </div>
 
-            <!-- FULL SCREEN LYRICS WINDOW -->
             <div class="lyrics-scroll-box" id="lyricsScrollBox">
                 <template x-for="(line, index) in parsedLyrics" :key="index">
                     <div class="lyric-line" 
@@ -163,21 +159,18 @@
                          :class="{ 'active': isLineActive(index) }"
                          x-text="line.text"></div>
                 </template>
-                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center">Lyrics unavailable</div>
+                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic text-center py-10" x-text="lyricsStatus"></div>
             </div>
         </div>
     </div>
 
     <!-- LYRICS SELECTION LIST -->
-    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" 
-         class="fixed inset-0 bg-black/60 z-[250] flex items-end">
+    <div x-show="showLyricsList" x-cloak @click.away="showLyricsList = false" class="fixed inset-0 bg-black/60 z-[250] flex items-end">
         <div class="lyrics-modal w-full">
             <h3 class="text-white font-black text-xl mb-6">Available Lyrics</h3>
             <div class="space-y-4">
                 <template x-for="item in lyricsVersions" :key="item.id">
-                    <div @click="selectLyrics(item)" 
-                         class="p-4 rounded-2xl flex justify-between items-center"
-                         :class="selectedLyricsId === item.id ? 'bg-white/20 border border-white/30' : 'bg-white/5'">
+                    <div @click="selectLyrics(item)" class="p-4 rounded-2xl flex justify-between items-center cursor-pointer" :class="selectedLyricsId === item.id ? 'bg-white/20 border border-white/30' : 'bg-white/5'">
                         <div>
                             <p class="text-white font-bold text-sm" x-text="item.trackName"></p>
                             <p class="text-white/40 text-xs" x-text="'Duration: ' + formatTime(item.duration)"></p>
@@ -195,15 +188,13 @@
 
 <script>
     var player;
-    window.handleItunesResponse = function(data) {
-        window.dispatchEvent(new CustomEvent('itunes-data', { detail: data }));
-    };
+    window.handleItunesResponse = function(data) { window.dispatchEvent(new CustomEvent('itunes-data', { detail: data })); };
 
     function audifyApp() {
         return {
             songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, 
             currentTime: 0, duration: 0, parsedLyrics: [], lastIndex: -1,
-            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null,
+            showLyricsList: false, lyricsVersions: [], selectedLyricsId: null, lyricsStatus: 'Fetching lyrics...',
 
             initApp() {
                 this.fetchData('Trending');
@@ -237,18 +228,18 @@
                 this.playerOpen = true;
                 this.isPlaying = true;
                 this.parsedLyrics = [];
+                this.lyricsVersions = [];
                 this.lastIndex = -1;
+                this.lyricsStatus = 'Searching for lyrics...';
 
-                // Load Metadata/Art
+                // iTunes Artwork
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
                 const onData = (e) => {
                     if (e.detail.results?.length > 0) {
                         const imgUrl = e.detail.results[0].artworkUrl100.replace('100x100bb.jpg', '800x800bb.jpg');
                         this.activeTrack.thumbnail = imgUrl;
-                        const img = new Image();
-                        img.crossOrigin = "anonymous";
-                        img.src = imgUrl;
+                        const img = new Image(); img.crossOrigin = "anonymous"; img.src = imgUrl;
                         img.onload = () => this.updateTheme(img);
                     }
                     window.removeEventListener('itunes-data', onData);
@@ -256,7 +247,7 @@
                 window.addEventListener('itunes-data', onData);
                 document.body.appendChild(script);
 
-                // Load YouTube
+                // Youtube/Lyrics
                 if (player && player.loadVideoById) {
                     player.loadVideoById(song.id);
                 } else {
@@ -280,18 +271,26 @@
             },
             async getLyricsList(artist, title) {
                 try {
-                    const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
+                    // Step 1: Broad Search
+                    const url = `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
+                    const res = await fetch(url);
                     const data = await res.json();
-                    this.lyricsVersions = data.filter(l => l.syncedLyrics);
+                    
+                    this.lyricsVersions = data.filter(l => l.syncedLyrics && l.syncedLyrics.length > 0);
                     
                     if(this.lyricsVersions.length > 0) {
-                        // Find closest duration logic
+                        // Find closest match to duration
                         let closest = this.lyricsVersions.reduce((prev, curr) => {
                             return (Math.abs(curr.duration - this.duration) < Math.abs(prev.duration - this.duration) ? curr : prev);
                         });
                         this.selectLyrics(closest);
+                    } else {
+                        this.lyricsStatus = 'No synced lyrics found for this track.';
                     }
-                } catch (e) { this.parsedLyrics = []; }
+                } catch (e) { 
+                    this.lyricsStatus = 'Error loading lyrics.';
+                    console.error(e);
+                }
             },
             selectLyrics(version) {
                 this.selectedLyricsId = version.id;
@@ -300,6 +299,7 @@
                     return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() } : null;
                 }).filter(l => l && l.text);
                 this.showLyricsList = false;
+                this.lyricsStatus = '';
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
