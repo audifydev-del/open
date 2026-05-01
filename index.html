@@ -14,57 +14,61 @@
             background-color: #000; color: white; font-family: 'Inter', sans-serif; 
             overflow: hidden; margin: 0; height: 100dvh; 
         }
+        
+        /* Main Shell */
         .app-shell { 
             width: 100%; max-width: 450px; height: 100%; margin: 0 auto; 
-            position: relative; background: #121212; 
-            display: flex; flex-direction: column;
+            position: relative; background: #121212;
         }
 
-        /* The "Literal" Player Layout */
-        .player-view {
-            position: absolute;
-            inset: 0;
+        /* Full Page Player Layer */
+        .immersive-player {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
             background: #121212;
-            z-index: 100; /* Ensures it sits on top of everything */
+            z-index: 50;
             display: flex;
             flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .hero-section {
+        /* The Hero Thumbnail */
+        .player-bg {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 70%; /* Image takes up most of the top */
+            height: 65%;
             z-index: 1;
         }
-
-        .hero-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .hero-overlay {
+        .player-bg img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* The Fade Out to Color */
+        .player-gradient {
             position: absolute;
             inset: 0;
-            /* Fades the bottom of the image into the background color */
-            background: linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.4) 60%, #121212 100%);
+            background: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(18,18,18,0.5) 50%, 
+                #121212 90%);
             z-index: 2;
         }
 
-        .player-ui {
+        /* Controls Area */
+        .player-body {
             position: relative;
-            z-index: 3; /* Sits above the image and fade */
-            margin-top: auto; /* Pushes content to the bottom */
-            padding: 40px 25px;
-            background: linear-gradient(to top, #121212 80%, transparent);
+            z-index: 3;
+            margin-top: auto;
+            padding: 40px 28px;
         }
 
-        #player-container { position: absolute; top: -9999px; visibility: hidden; }
-        
-        /* Basic list/grid styles */
-        .song-card { background: #181818; padding: 10px; border-radius: 8px; }
+        .song-card { background: #1c1c1c; border-radius: 8px; padding: 10px; }
+        #yt-frame-container { position: absolute; visibility: hidden; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -72,70 +76,69 @@
 <div x-data="audifyApp()" x-init="initApp()">
     <div class="app-shell">
         
-        <!-- Library / Search View -->
-        <main class="flex-grow overflow-y-auto px-4 pt-6 pb-20" x-show="!playerOpen">
-            <h1 class="text-2xl font-black mb-6">Audify</h1>
-            
-            <div class="mb-6">
+        <!-- Search/List View -->
+        <div class="h-full flex flex-col overflow-hidden" x-show="!playerOpen">
+            <header class="p-6">
+                <h1 class="text-2xl font-black mb-4">Audify</h1>
                 <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                       placeholder="Search songs..." 
-                       class="w-full bg-zinc-800 rounded-lg py-3 px-4 outline-none border border-white/10">
+                       placeholder="Search for music..." 
+                       class="w-full bg-white/10 rounded-full py-3 px-6 outline-none border border-white/5 focus:bg-white/20">
+            </header>
+
+            <main class="flex-grow overflow-y-auto px-4 pb-24">
+                <div class="grid grid-cols-2 gap-4">
+                    <template x-for="song in songs" :key="song.id">
+                        <div class="song-card active:scale-95 transition-transform" @click="playSong(song)">
+                            <img :src="song.thumbnail" class="w-full aspect-square rounded-md object-cover mb-2">
+                            <p class="text-sm font-bold truncate" x-text="song.title"></p>
+                            <p class="text-[11px] text-gray-400 truncate" x-text="song.artist"></p>
+                        </div>
+                    </template>
+                </div>
+            </main>
+        </div>
+
+        <!-- THE ACTUAL IMMERSIVE PLAYER -->
+        <div class="immersive-player" :style="playerOpen ? 'transform: translateX(-50%) translateY(0)' : 'transform: translateX(-50%) translateY(100%)'">
+            
+            <!-- Hero Image and Fade -->
+            <div class="player-bg">
+                <img :src="activeTrack?.thumbnail" alt="">
+                <div class="player-gradient"></div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
-                <template x-for="song in songs" :key="song.id">
-                    <div class="song-card" @click="playSong(song)">
-                        <img :src="song.thumbnail" class="w-full aspect-square rounded-md object-cover mb-2">
-                        <p class="text-sm font-bold truncate" x-text="song.title"></p>
-                        <p class="text-xs text-zinc-400 truncate" x-text="song.artist"></p>
-                    </div>
-                </template>
+            <!-- Header Controls -->
+            <div class="relative z-10 flex justify-between items-center p-6">
+                <button @click="playerOpen = false" class="text-2xl"><i class="fa-solid fa-chevron-down"></i></button>
+                <span class="text-[10px] font-bold tracking-widest uppercase opacity-60">Now Playing</span>
+                <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
             </div>
-        </main>
 
-        <!-- THE ACTUAL PLAYER -->
-        <template x-if="playerOpen">
-            <div class="player-view" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="transform translate-y-full" x-transition:enter-end="transform translate-y-0">
-                
-                <!-- Background Image Section -->
-                <div class="hero-section">
-                    <img :src="activeTrack?.thumbnail" class="hero-image">
-                    <div class="hero-overlay"></div>
+            <!-- Content -->
+            <div class="player-body">
+                <div class="mb-10">
+                    <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
+                    <p class="text-xl text-gray-400 font-medium" x-text="activeTrack?.artist"></p>
                 </div>
 
-                <!-- Top Controls (Floating) -->
-                <div class="relative z-10 flex justify-between p-6">
-                    <button @click="playerOpen = false" class="w-10 h-10 flex items-center justify-center bg-black/20 rounded-full backdrop-blur-md">
-                        <i class="fa-solid fa-chevron-down"></i>
+                <!-- Spotify Style Bar -->
+                <div class="flex justify-between items-center px-2">
+                    <i class="fa-solid fa-shuffle text-xl text-gray-500"></i>
+                    <i class="fa-solid fa-backward-step text-3xl"></i>
+                    
+                    <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+                        <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                     </button>
-                    <i class="fa-solid fa-ellipsis-vertical text-xl opacity-60"></i>
-                </div>
-
-                <!-- Player Controls & Info -->
-                <div class="player-ui">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-black truncate leading-tight" x-text="activeTrack?.title"></h2>
-                        <p class="text-xl text-zinc-400 font-bold" x-text="activeTrack?.artist"></p>
-                    </div>
-
-                    <div class="flex justify-between items-center px-4">
-                        <i class="fa-solid fa-shuffle text-xl text-zinc-500"></i>
-                        <i class="fa-solid fa-backward-step text-3xl"></i>
-                        
-                        <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
-                            <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
-                        </button>
-                        
-                        <i class="fa-solid fa-forward-step text-3xl"></i>
-                        <i class="fa-solid fa-repeat text-xl text-zinc-500"></i>
-                    </div>
+                    
+                    <i class="fa-solid fa-forward-step text-3xl"></i>
+                    <i class="fa-solid fa-repeat text-xl text-gray-500"></i>
                 </div>
             </div>
-        </template>
+        </div>
 
         <!-- Hidden Audio Engine -->
-        <div id="player-container">
-            <iframe id="yt-iframe" src="" allow="autoplay"></iframe>
+        <div id="yt-frame-container">
+            <iframe id="yt-iframe" width="1" height="1" src="" allow="autoplay"></iframe>
         </div>
     </div>
 </div>
@@ -150,24 +153,24 @@
             isPlaying: false,
 
             initApp() {
-                this.fetchData('new music 2026');
+                this.fetchData('new hits 2026');
             },
 
             async fetchData(q) {
                 try {
                     const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
                     this.songs = await res.json();
-                } catch (e) { console.error("Search failed"); }
+                } catch (e) { console.error("Search error:", e); }
             },
 
             playSong(song) {
                 this.activeTrack = song;
+                this.playerOpen = true;
                 this.isPlaying = true;
-                this.playerOpen = true; // Open the player view
                 
-                // Set Iframe source
+                // Direct DOM manipulation is safer for 2GB RAM
                 const iframe = document.getElementById('yt-iframe');
-                iframe.src = `https://www.youtube.com/embed/${song.id}?autoplay=1&enablejsapi=1`;
+                iframe.src = `https://www.youtube.com/embed/${song.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`;
             },
 
             togglePlay() {
