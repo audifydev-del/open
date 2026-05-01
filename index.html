@@ -33,7 +33,7 @@
             z-index: 100;
             display: flex; flex-direction: column;
             transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), background-color 1s ease;
-            overflow-y: auto; /* Makes the player scrollable */
+            overflow-y: auto;
             scrollbar-width: none;
         }
         .immersive-player::-webkit-scrollbar { display: none; }
@@ -45,7 +45,7 @@
         
         .artwork-overlay { 
             position: absolute; inset: 0; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 40%, var(--theme-color) 100%); 
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 30%, var(--theme-color) 100%); 
             z-index: 2;
         }
 
@@ -59,21 +59,16 @@
             -webkit-appearance: none; height: 14px; width: 14px; background: #fff; border-radius: 50%; 
         }
 
-        .lyrics-section {
-            margin-top: 40px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
-            min-height: 200px;
+        .lyrics-container { margin-top: 30px; }
+        .lyric-line {
+            font-size: 1.5rem;
+            line-height: 1.4;
+            font-weight: 800;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.2);
         }
-        
-        .lyrics-text {
-            font-size: 1.25rem;
-            line-height: 1.6;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.5);
-            white-space: pre-wrap;
-        }
+        .lyric-line.active { color: #fff; transform: scale(1.05); transform-origin: left; }
         
         #yt-hidden { position: absolute; top: -9999px; visibility: hidden; }
         canvas { display: none; }
@@ -89,8 +84,8 @@
         <header class="p-6">
             <h1 class="text-4xl font-black mb-4 tracking-tighter text-white">Audify</h1>
             <input type="text" x-model="searchQuery" @keydown.enter="fetchData(searchQuery)" 
-                   placeholder="Search songs..." 
-                   class="w-full bg-white/10 rounded-2xl py-4 px-6 text-white outline-none border border-white/5">
+                   placeholder="Search..." 
+                   class="w-full bg-white/10 rounded-2xl py-4 px-6 text-white outline-none">
         </header>
         <main class="flex-grow overflow-y-auto px-4 pb-24">
             <div class="grid grid-cols-2 gap-4">
@@ -104,20 +99,21 @@
         </main>
     </div>
 
-    <!-- SCROLLABLE PLAYER -->
+    <!-- PLAYER -->
     <div class="immersive-player" :style="playerOpen ? 'transform: translateY(0)' : 'transform: translateY(100%)'">
         <div class="artwork-container">
-            <img :src="activeTrack?.thumbnail" crossorigin="anonymous" id="mainArt">
+            <img :src="activeTrack?.thumbnail" crossorigin="anonymous">
             <div class="artwork-overlay"></div>
-            <button @click="playerOpen = false" class="absolute top-10 left-6 z-30 p-2 bg-black/20 rounded-full text-white">
-                <i class="fa-solid fa-chevron-down text-xl"></i>
-            </button>
+            <button @click="playerOpen = false" class="absolute top-10 left-6 z-30 p-2 text-white opacity-50"><i class="fa-solid fa-chevron-down text-xl"></i></button>
         </div>
 
         <div class="player-content text-white">
-            <div class="mb-8">
-                <h2 class="text-3xl font-black truncate" x-text="activeTrack?.title"></h2>
-                <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
+            <div class="mb-8 flex justify-between items-center">
+                <div>
+                    <h2 class="text-3xl font-black truncate w-64" x-text="activeTrack?.title"></h2>
+                    <p class="text-xl text-white/60 font-bold" x-text="activeTrack?.artist"></p>
+                </div>
+                <i class="fa-regular fa-heart text-2xl opacity-40"></i>
             </div>
 
             <div class="mb-8">
@@ -128,18 +124,25 @@
                 </div>
             </div>
 
-            <div class="flex justify-center items-center gap-8 mb-10">
+            <!-- CONTROLS RESTORED -->
+            <div class="flex justify-between items-center mb-12">
+                <i class="fa-solid fa-shuffle text-xl opacity-30"></i>
                 <i class="fa-solid fa-backward-step text-3xl"></i>
                 <button @click="togglePlay()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center">
                     <i class="fa-solid text-3xl" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
                 </button>
                 <i class="fa-solid fa-forward-step text-3xl"></i>
+                <i class="fa-solid fa-repeat text-xl opacity-30"></i>
             </div>
 
-            <!-- LYRICS SECTION -->
-            <div class="lyrics-section">
-                <p class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Lyrics</p>
-                <div class="lyrics-text" x-text="lyrics || 'Loading lyrics...'"></div>
+            <!-- SYNCED LYRICS -->
+            <div class="lyrics-container">
+                <template x-for="(line, index) in parsedLyrics" :key="index">
+                    <div class="lyric-line" 
+                         :class="{ 'active': currentTime >= line.time && (parsedLyrics[index+1] ? currentTime < parsedLyrics[index+1].time : true) }"
+                         x-text="line.text"></div>
+                </template>
+                <div x-show="parsedLyrics.length === 0" class="opacity-20 italic">Lyrics unavailable</div>
             </div>
         </div>
     </div>
@@ -155,7 +158,7 @@
 
     function audifyApp() {
         return {
-            songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0, lyrics: '',
+            songs: [], searchQuery: '', activeTrack: null, playerOpen: false, isPlaying: false, currentTime: 0, duration: 0, parsedLyrics: [],
             initApp() {
                 this.fetchData('Latest Pop');
                 let tag = document.createElement('script');
@@ -170,9 +173,9 @@
                 this.activeTrack = song;
                 this.playerOpen = true;
                 this.isPlaying = true;
-                this.lyrics = 'Searching for lyrics...';
+                this.parsedLyrics = [];
 
-                // 1. Fetch High-Res Art & Color (JSONP)
+                // 1. JSONP for Art/Color
                 const script = document.createElement('script');
                 script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(song.artist + ' ' + song.title)}&limit=1&entity=song&callback=handleItunesResponse`;
                 const onData = (e) => {
@@ -190,7 +193,7 @@
                 window.addEventListener('itunes-data', onData);
                 document.body.appendChild(script);
 
-                // 2. Fetch Lyrics from LRCLIB
+                // 2. Lyrics
                 this.getLyrics(song.artist, song.title);
 
                 // 3. YouTube
@@ -203,7 +206,7 @@
                     });
                 }
                 if(!this.intv) {
-                    setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = Math.floor(player.getCurrentTime()); }, 1000);
+                    setInterval(() => { if(player && this.isPlaying && player.getCurrentTime) this.currentTime = player.getCurrentTime(); }, 200);
                     this.intv = true;
                 }
             },
@@ -211,10 +214,16 @@
                 try {
                     const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
                     const data = await res.json();
-                    this.lyrics = data.plainLyrics || data.syncedLyrics?.replace(/\[.*?\]/g, '') || "Lyrics not found.";
-                } catch (e) {
-                    this.lyrics = "Could not load lyrics.";
-                }
+                    if(data.syncedLyrics) {
+                        this.parsedLyrics = data.syncedLyrics.split('\n').map(line => {
+                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                            if(match) {
+                                return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                            }
+                            return null;
+                        }).filter(l => l && l.text);
+                    }
+                } catch (e) { this.parsedLyrics = []; }
             },
             updateTheme(img) {
                 const canvas = document.getElementById('colorCanvas');
