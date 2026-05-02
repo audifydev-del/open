@@ -50,24 +50,24 @@
 
         .lyrics-window { 
             margin-top: 40px; 
-            padding: 20px;
-            height: 320px;
+            padding: 40px 20px;
+            height: 350px;
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
 
         .lyrics-line { 
-            font-size: 1.6rem; font-weight: 800; line-height: 1.3; 
-            color: rgba(255,255,255,0.2); transition: all 0.4s ease; 
-            margin-bottom: 24px; transform-origin: left; filter: blur(1px);
+            font-size: 1.6rem; font-weight: 800; line-height: 1.4; 
+            color: rgba(255,255,255,0.15); transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+            margin-bottom: 28px; transform-origin: left;
         }
         
-        .lyrics-line.active { color: #fff; transform: scale(1.05); filter: blur(0px); }
+        .lyrics-line.active { color: #fff; transform: scale(1.05); }
 
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -89,11 +89,11 @@
         }
         .control-pill.active { background: #fff; color: #000; }
 
-        /* Invisible scrollbar for the sources list */
         .sources-list {
-            max-height: 192px;
+            max-height: 200px;
             overflow-y: auto;
             scrollbar-width: none;
+            -ms-overflow-style: none;
         }
         .sources-list::-webkit-scrollbar { display: none; }
     </style>
@@ -160,9 +160,6 @@
                 <p class="text-[10px] text-zinc-400 truncate" x-text="active?.artist"></p>
             </div>
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
-            <div class="absolute bottom-0 left-0 h-[2px] bg-white/30 rounded-full" style="width: 100%;">
-                <div class="h-full bg-white transition-all" :style="`width: ${prog}%`"></div>
-            </div>
         </div>
 
         <nav class="bottom-nav">
@@ -206,7 +203,7 @@
                 </div>
 
                 <div class="flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
                             <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''">
@@ -218,7 +215,6 @@
                         </div>
                     </div>
 
-                    <!-- Lyric Source List (Invisible scrollbar) -->
                     <div x-show="showLyricSources" class="mb-6 space-y-2 bg-white/5 p-4 rounded-xl border border-white/5 sources-list" x-transition>
                         <template x-for="(source, idx) in allLyricSources">
                             <div @click="selectLyricSource(source)" class="flex justify-between items-center p-3 hover:bg-white/10 rounded-lg cursor-pointer border-b border-white/5 last:border-0">
@@ -235,18 +231,18 @@
                     </div>
 
                     <div class="lyrics-window" id="lyrics-window">
-                        <div class="space-y-6" id="lyrics-container">
+                        <div class="space-y-1" id="lyrics-container">
                             <template x-for="(line, index) in lyrics">
                                 <div class="lyrics-line" 
                                      :id="'line-'+index"
                                      :class="currentLineIndex === index ? 'active' : ''" 
                                      x-text="line.text"></div>
                             </template>
-                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">Searching lyrics...</div>
+                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10" x-text="active ? 'No lyrics available' : 'Select a song'"></div>
                         </div>
                     </div>
                 </div>
-                <div class="h-24"></div>
+                <div class="h-32"></div>
             </div>
         </div>
         
@@ -259,7 +255,7 @@
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('player', {
                 height: '1', width: '1', videoId: '',
-                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'playsinline': 1, 'origin': window.location.origin },
+                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'playsinline': 1 },
                 events: {
                     'onStateChange': (e) => {
                         if(window.audifyAppInstance) window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
@@ -286,8 +282,9 @@
                     window.audifyAppInstance = this;
                     setTimeout(() => this.splash = false, 1500);
                     try {
-                        const res = await fetch('/search?q=trending+music+global+hits');
+                        const res = await fetch('/search?q=trending+hits');
                         const data = await res.json();
+                        // Front Page Filter (Stays in Search)
                         this.trending = data.filter(s => {
                             const low = (s.title + s.artist).toLowerCase();
                             const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'zee music', 'punjabi', 'bhushan kumar'];
@@ -302,7 +299,7 @@
                             this.prog = (this.currentTime / this.duration) * 100;
                             this.syncLyrics();
                         }
-                    }, 250);
+                    }, 150); // Faster sync check
                 },
                 async searchMusic() {
                     if(!this.query) return;
@@ -323,7 +320,6 @@
                 selectLyricSource(source) {
                     this.activeLyricId = source.id;
                     this.showLyricSources = false;
-                    this.currentLineIndex = -1;
                     if(source.syncedLyrics) {
                         this.lyrics = source.syncedLyrics.split('\n').map(line => {
                             const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -336,10 +332,15 @@
                 },
                 syncLyrics() {
                     if(!this.lyrics.length || this.lyrics[0].time === 0) return;
-                    let index = this.lyrics.findIndex((line, i) => {
-                        const nextLine = this.lyrics[i + 1];
-                        return this.currentTime >= line.time && (!nextLine || this.currentTime < nextLine.time);
-                    });
+                    
+                    let index = -1;
+                    for (let i = 0; i < this.lyrics.length; i++) {
+                        if (this.currentTime >= this.lyrics[i].time) {
+                            index = i;
+                        } else {
+                            break;
+                        }
+                    }
                     
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
@@ -347,9 +348,9 @@
                             const activeEl = document.getElementById('line-' + index);
                             const windowEl = document.getElementById('lyrics-window');
                             if(activeEl && windowEl) {
-                                // Only scroll within the invisible box, NOT the whole screen
-                                const topPos = activeEl.offsetTop - windowEl.offsetTop - (windowEl.clientHeight / 2);
-                                windowEl.scrollTo({ top: topPos, behavior: 'smooth' });
+                                // Calculate position relative to container ONLY
+                                const targetY = activeEl.offsetTop - (windowEl.offsetHeight / 2) + (activeEl.offsetHeight / 2) - windowEl.offsetTop;
+                                windowEl.scrollTo({ top: targetY, behavior: 'smooth' });
                             }
                         }
                     }
