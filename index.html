@@ -100,11 +100,23 @@
             gap: 6px;
         }
         .control-pill.active { background: #fff; color: #000; }
+        
+        .source-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .source-item:hover { background: rgba(255,255,255,0.1); }
+        .source-item.active { border-color: #fff; background: rgba(255,255,255,0.15); }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
-    <!-- Launch Screen (Required for Fullscreen Gesture) -->
+    <!-- Launch Screen -->
     <div x-show="!launched" @click="launch()" class="fixed inset-0 bg-black z-[300] flex flex-col items-center justify-center cursor-pointer">
         <p class="font-bold tracking-[0.4em] uppercase text-[14px] mb-4">Audify</p>
         <p class="text-zinc-500 text-[10px] uppercase tracking-widest animate-bounce">Click anywhere to launch</p>
@@ -215,10 +227,26 @@
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
+                            <!-- SOURCES BUTTON ADDED HERE -->
+                            <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''">
+                                <i class="fa-solid fa-list-ul"></i> Sources
+                            </button>
                             <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''">
                                 <i class="fa-solid fa-arrows-rotate"></i> Sync
                             </button>
                         </div>
+                    </div>
+
+                    <!-- SOURCES OVERLAY -->
+                    <div x-show="showSources" x-transition class="bg-zinc-900/90 backdrop-blur-xl p-4 rounded-2xl mb-4 border border-white/10 max-h-60 overflow-y-auto">
+                        <p class="text-[10px] uppercase font-black text-white/40 mb-3 tracking-widest">Available Sources</p>
+                        <template x-for="(source, idx) in availableSources">
+                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
+                                <p class="text-xs font-bold" x-text="source.trackName || 'Untitled'"></p>
+                                <p class="text-[10px] text-white/50" x-text="source.albumName || 'Unknown Album'"></p>
+                            </div>
+                        </template>
+                        <div x-show="availableSources.length === 0" class="text-center py-4 text-white/20 text-xs">No other sources found</div>
                     </div>
 
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
@@ -261,23 +289,23 @@
 
         function audifyApp() {
             return {
-                launched: false, // Tracks if user has clicked to start
+                launched: false,
                 splash: true, currentView: 'home', query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], searchResults: [], active: null,
                 lyrics: [], currentLineIndex: -1, isSynced: true,
                 userScrollingTimer: null, isUserScrolling: false,
+                
+                // NEW STATE FOR SOURCES
+                showSources: false,
+                availableSources: [],
+                activeSourceId: null,
 
                 launch() {
                     this.launched = true;
                     const docElm = document.documentElement;
-                    if (docElm.requestFullscreen) {
-                        docElm.requestFullscreen();
-                    } else if (docElm.webkitRequestFullscreen) {
-                        docElm.webkitRequestFullscreen();
-                    } else if (docElm.msRequestFullscreen) {
-                        docElm.msRequestFullscreen();
-                    }
+                    if (docElm.requestFullscreen) docElm.requestFullscreen();
+                    else if (docElm.webkitRequestFullscreen) docElm.webkitRequestFullscreen();
                 },
 
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
@@ -315,19 +343,28 @@
                 },
                 async fetchLyrics(track) {
                     if(!track) return;
+                    this.availableSources = [];
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
                         if(!data.length) return;
-                        let source = data[0];
-                        if(source.syncedLyrics) {
-                            this.lyrics = source.syncedLyrics.split('\n').map(line => {
-                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                                if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
-                                return null;
-                            }).filter(l => l && l.text);
-                        }
+                        
+                        this.availableSources = data; // Store all found versions
+                        this.applySource(data[0]); // Default to first result
                     } catch(e) {}
+                },
+                applySource(source) {
+                    this.activeSourceId = source.id;
+                    if(source.syncedLyrics) {
+                        this.lyrics = source.syncedLyrics.split('\n').map(line => {
+                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                            if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                            return null;
+                        }).filter(l => l && l.text);
+                    } else if (source.plainLyrics) {
+                        this.lyrics = [{time: 0, text: "Unsynced lyrics available:"}, ...source.plainLyrics.split('\n').map(l => ({time: 0, text: l}))];
+                    }
+                    this.showSources = false; // Close menu after selection
                 },
                 handleUserScroll() {
                     this.isUserScrolling = true;
@@ -358,6 +395,8 @@
                 play(s) {
                     this.active = s;
                     this.lyrics = [];
+                    this.availableSources = [];
+                    this.showSources = false;
                     this.currentLineIndex = -1;
                     if(ytPlayer?.loadVideoById) {
                         ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
