@@ -37,7 +37,7 @@
         .lyrics-window { 
             margin-top: 10px; 
             padding: 20px 20px 60px 20px; 
-            height: 350px; 
+            height: 350px; /* Locked height so the list stays visible below */
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
@@ -68,26 +68,6 @@
             transition: 0.2s;
         }
         .song-list-item:active { transform: scale(0.98); background: rgba(255,255,255,0.1); }
-
-        /* Subtle Source UI */
-        .source-pill {
-            background: rgba(255,255,255,0.1);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 9px;
-            font-weight: 800;
-            text-transform: uppercase;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .source-dropdown {
-            position: absolute; bottom: 100%; right: 0; margin-bottom: 10px;
-            background: #121212; border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px; width: 220px; z-index: 50;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        }
 
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
@@ -146,39 +126,20 @@
                     <i class="fa-solid fa-forward-step text-2xl"></i>
                 </div>
 
-                <!-- Lyrics Section (Kept layout exactly the same) -->
-                <div class="mb-8 relative">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30">Lyrics</h3>
-                        <!-- Subtle Source Switcher -->
-                        <div x-show="lyricsSources.length > 1" class="relative">
-                            <button @click="showSources = !showSources" class="source-pill">
-                                Source <i class="fa-solid fa-caret-down"></i>
-                            </button>
-                            <div x-show="showSources" @click.away="showSources = false" class="source-dropdown p-2">
-                                <template x-for="(src, i) in lyricsSources">
-                                    <div @click="selectSource(src)" class="p-3 mb-1 rounded-lg hover:bg-white/10 cursor-pointer overflow-hidden">
-                                        <p class="text-[10px] font-bold truncate" x-text="src.trackName"></p>
-                                        <p class="text-[8px] text-white/40 truncate" x-text="src.artistName"></p>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                    
+                <!-- Lyrics Section -->
+                <div class="mb-8">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Lyrics</h3>
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
                         <div id="lyrics-container">
                             <template x-for="(line, index) in lyrics" :key="index">
                                 <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
                             </template>
-                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">
-                                <span x-text="active ? 'Finding Lyrics...' : 'No Lyrics Found'"></span>
-                            </div>
+                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">Loading...</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Song List -->
+                <!-- Song List (The List You Wanted Back) -->
                 <div class="mt-4">
                     <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Up Next</h3>
                     <div class="space-y-3 pb-20">
@@ -222,7 +183,7 @@
             return {
                 open: false, playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], active: null, lyrics: [], currentLineIndex: -1, 
-                isUserScrolling: false, showSources: false, lyricsSources: [],
+                isUserScrolling: false,
 
                 formatTime(s) {
                     if(!s) return "0:00";
@@ -244,23 +205,17 @@
                     }, 200);
                 },
                 async fetchLyrics(track) {
-                    if(!track || this.lyricsSources.length) return;
+                    if(!track || this.lyrics.length) return;
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
-                        // Only use results that have synced lyrics
-                        this.lyricsSources = data.filter(s => s.syncedLyrics);
-                        if(this.lyricsSources.length > 0) {
-                            this.selectSource(this.lyricsSources[0]);
+                        if(data[0]?.syncedLyrics) {
+                            this.lyrics = data[0].syncedLyrics.split('\n').map(line => {
+                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                                return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
+                            }).filter(l => l?.text);
                         }
                     } catch(e) {}
-                },
-                selectSource(source) {
-                    this.lyrics = source.syncedLyrics.split('\n').map(line => {
-                        const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                        return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
-                    }).filter(l => l?.text);
-                    this.showSources = false;
                 },
                 syncLyrics() {
                     if(!this.lyrics.length) return;
@@ -283,9 +238,9 @@
                     this.active = s;
                     this.open = true;
                     this.lyrics = [];
-                    this.lyricsSources = [];
                     this.currentLineIndex = -1;
                     ytPlayer.loadVideoById(s.id);
+                    // Scroll to top of player view when changing songs
                     document.querySelector('.player-view').scrollTo(0,0);
                 },
                 toggle() { this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); },
