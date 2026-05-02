@@ -65,6 +65,7 @@
             font-size: 1.6rem; font-weight: 800; line-height: 1.3; 
             color: rgba(255,255,255,0.2); transition: all 0.4s ease; 
             margin-bottom: 24px; transform-origin: left; filter: blur(1px);
+            scroll-margin-top: 100px;
         }
         
         .lyrics-line.active { color: #fff; transform: scale(1.05); filter: blur(0px); }
@@ -72,7 +73,7 @@
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
-        .lyrics-pill {
+        .control-pill {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.1);
             padding: 6px 12px;
@@ -83,8 +84,11 @@
             letter-spacing: 1px;
             cursor: pointer;
             transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        .lyrics-pill:hover { background: rgba(255,255,255,0.2); }
+        .control-pill.active { background: #fff; color: #000; }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
@@ -194,29 +198,45 @@
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
-                <div class="lyrics-window">
+                <div class="flex flex-col">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
-                        <button @click="showLyricSources = !showLyricSources" class="lyrics-pill">
-                            Sources <i class="fa-solid fa-caret-down ml-1"></i>
-                        </button>
+                        <div class="flex gap-2">
+                            <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''">
+                                <i class="fa-solid fa-arrows-rotate"></i> Sync
+                            </button>
+                            <button @click="showLyricSources = !showLyricSources" class="control-pill">
+                                Sources <i class="fa-solid fa-caret-down"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Lyric Source List -->
-                    <div x-show="showLyricSources" class="mb-6 space-y-2 bg-white/5 p-4 rounded-xl border border-white/5" x-transition>
+                    <div x-show="showLyricSources" class="mb-6 space-y-2 bg-white/5 p-4 rounded-xl border border-white/5 max-h-48 overflow-y-auto" x-transition>
                         <template x-for="(source, idx) in allLyricSources">
-                            <div @click="selectLyricSource(source)" class="flex justify-between items-center text-[11px] font-bold p-2 hover:bg-white/10 rounded-lg cursor-pointer">
-                                <span x-text="source.instrumental ? 'Instrumental' : (source.plainLyrics ? 'Synced' : 'Basic')"></span>
-                                <i x-show="activeLyricId === source.id" class="fa-solid fa-check text-green-500"></i>
+                            <div @click="selectLyricSource(source)" class="flex justify-between items-center p-3 hover:bg-white/10 rounded-lg cursor-pointer border-b border-white/5 last:border-0">
+                                <div class="flex flex-col">
+                                    <span class="text-[11px] font-bold text-white" x-text="source.trackName"></span>
+                                    <span class="text-[9px] text-white/50 uppercase" x-text="source.artistName"></span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[9px] px-1.5 py-0.5 bg-white/10 rounded text-white/70" x-text="source.duration ? formatTime(source.duration) : 'N/A'"></span>
+                                    <i x-show="activeLyricId === source.id" class="fa-solid fa-circle-check text-white text-xs"></i>
+                                </div>
                             </div>
                         </template>
                     </div>
 
-                    <div class="space-y-6" id="lyrics-container">
-                        <template x-for="(line, index) in lyrics">
-                            <div class="lyrics-line" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
-                        </template>
-                        <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">No Lyrics Found</div>
+                    <div class="lyrics-window" id="lyrics-window">
+                        <div class="space-y-6" id="lyrics-container">
+                            <template x-for="(line, index) in lyrics">
+                                <div class="lyrics-line" 
+                                     :id="'line-'+index"
+                                     :class="currentLineIndex === index ? 'active' : ''" 
+                                     x-text="line.text"></div>
+                            </template>
+                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">Searching lyrics...</div>
+                        </div>
                     </div>
                 </div>
                 <div class="h-24"></div>
@@ -246,7 +266,7 @@
                 splash: true, currentView: 'home', query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], searchResults: [], active: null,
-                lyrics: [], currentLineIndex: -1,
+                lyrics: [], currentLineIndex: -1, isSynced: true,
                 showLyricSources: false, allLyricSources: [], activeLyricId: null,
 
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
@@ -259,12 +279,13 @@
                     window.audifyAppInstance = this;
                     setTimeout(() => this.splash = false, 1500);
                     try {
-                        const res = await fetch('/search?q=trending+hits');
+                        const res = await fetch('/search?q=trending+music+global+hits');
                         const data = await res.json();
-                        // Filter out content that might be from a specific region
+                        // Aggressive Front Page Filter
                         this.trending = data.filter(s => {
                             const low = (s.title + s.artist).toLowerCase();
-                            return !low.includes('india') && !low.includes('bollywood') && !low.includes('t-series');
+                            const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'zee music', 'punjabi', 'bhushan kumar'];
+                            return !banned.some(term => low.includes(term));
                         });
                     } catch(e) {}
 
@@ -280,7 +301,7 @@
                 async searchMusic() {
                     if(!this.query) return;
                     const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
-                    this.searchResults = await res.json();
+                    this.searchResults = await res.json(); // Search remains unfiltered
                 },
                 async fetchLyrics(track) {
                     this.lyrics = [];
@@ -290,12 +311,13 @@
                         const data = await res.json();
                         if(!data.length) return;
                         this.allLyricSources = data;
-                        this.selectLyricSource(data[0]); // Default to first result
+                        this.selectLyricSource(data[0]);
                     } catch(e) {}
                 },
                 selectLyricSource(source) {
                     this.activeLyricId = source.id;
                     this.showLyricSources = false;
+                    this.currentLineIndex = -1;
                     if(source.syncedLyrics) {
                         this.lyrics = source.syncedLyrics.split('\n').map(line => {
                             const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -312,7 +334,16 @@
                         const nextLine = this.lyrics[i + 1];
                         return this.currentTime >= line.time && (!nextLine || this.currentTime < nextLine.time);
                     });
-                    if (index !== -1) this.currentLineIndex = index;
+                    
+                    if (index !== -1 && index !== this.currentLineIndex) {
+                        this.currentLineIndex = index;
+                        if(this.isSynced) {
+                            const activeEl = document.getElementById('line-' + index);
+                            if(activeEl) {
+                                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }
+                    }
                 },
                 play(s) {
                     this.active = s;
@@ -320,7 +351,7 @@
                     if(ytPlayer?.loadVideoById) {
                         ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
                         this.playing = true;
-                        setTimeout(() => this.fetchLyrics(s), 1000);
+                        this.fetchLyrics(s);
                     }
                 },
                 toggle() {
