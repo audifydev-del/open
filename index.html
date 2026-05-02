@@ -48,40 +48,43 @@
             object-fit: cover; z-index: 10; position: relative;
         }
 
-        /* The Invisible Box for Lyrics */
         .lyrics-window { 
             margin-top: 40px; 
             padding: 20px;
-            height: 320px; /* Fixed height for the box */
-            overflow-y: auto; /* Internal scrolling enabled */
+            height: 320px;
+            overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            /* Fade effect for top and bottom */
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
 
         .lyrics-line { 
-            font-size: 1.6rem; 
-            font-weight: 800; 
-            line-height: 1.3; 
-            color: rgba(255,255,255,0.2); 
-            transition: all 0.4s ease; 
-            margin-bottom: 24px; 
-            transform-origin: left;
-            filter: blur(1px);
+            font-size: 1.6rem; font-weight: 800; line-height: 1.3; 
+            color: rgba(255,255,255,0.2); transition: all 0.4s ease; 
+            margin-bottom: 24px; transform-origin: left; filter: blur(1px);
         }
         
-        .lyrics-line.active { 
-            color: #fff; 
-            transform: scale(1.05); 
-            filter: blur(0px);
-        }
+        .lyrics-line.active { color: #fff; transform: scale(1.05); filter: blur(0px); }
 
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+        .lyrics-pill {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .lyrics-pill:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
@@ -138,6 +141,7 @@
             </div>
         </main>
 
+        <!-- Player Mini-bar -->
         <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
@@ -155,6 +159,7 @@
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
         </nav>
 
+        <!-- Full Player View -->
         <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
             <div class="min-h-screen p-8 flex flex-col relative z-10">
@@ -189,18 +194,32 @@
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
-                <!-- Lyrics Invisible Box Section -->
                 <div class="lyrics-window">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-white/30 mb-6">Lyrics</h3>
-                    <div class="space-y-6" id="lyrics-container">
-                        <template x-for="(line, index) in lyrics">
-                            <div class="lyrics-line" 
-                                 :class="currentLineIndex === index ? 'active' : ''" 
-                                 x-text="line.text"></div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
+                        <button @click="showLyricSources = !showLyricSources" class="lyrics-pill">
+                            Sources <i class="fa-solid fa-caret-down ml-1"></i>
+                        </button>
+                    </div>
+
+                    <!-- Lyric Source List -->
+                    <div x-show="showLyricSources" class="mb-6 space-y-2 bg-white/5 p-4 rounded-xl border border-white/5" x-transition>
+                        <template x-for="(source, idx) in allLyricSources">
+                            <div @click="selectLyricSource(source)" class="flex justify-between items-center text-[11px] font-bold p-2 hover:bg-white/10 rounded-lg cursor-pointer">
+                                <span x-text="source.instrumental ? 'Instrumental' : (source.plainLyrics ? 'Synced' : 'Basic')"></span>
+                                <i x-show="activeLyricId === source.id" class="fa-solid fa-check text-green-500"></i>
+                            </div>
                         </template>
                     </div>
+
+                    <div class="space-y-6" id="lyrics-container">
+                        <template x-for="(line, index) in lyrics">
+                            <div class="lyrics-line" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
+                        </template>
+                        <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">No Lyrics Found</div>
+                    </div>
                 </div>
-                <div class="h-20"></div> <!-- Extra spacer for bottom padding -->
+                <div class="h-24"></div>
             </div>
         </div>
         
@@ -210,7 +229,6 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         let ytPlayer;
-
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('player', {
                 height: '1', width: '1', videoId: '',
@@ -229,11 +247,12 @@
                 playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], searchResults: [], active: null,
                 lyrics: [], currentLineIndex: -1,
+                showLyricSources: false, allLyricSources: [], activeLyricId: null,
+
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
                 formatTime(s) {
                     if(!s) return "0:00";
-                    let m = Math.floor(s/60);
-                    let sec = Math.floor(s%60);
+                    let m = Math.floor(s/60), sec = Math.floor(s%60);
                     return `${m}:${sec < 10 ? '0' : ''}${sec}`;
                 },
                 async init() {
@@ -241,7 +260,12 @@
                     setTimeout(() => this.splash = false, 1500);
                     try {
                         const res = await fetch('/search?q=trending+hits');
-                        this.trending = await res.json();
+                        const data = await res.json();
+                        // Filter out content that might be from a specific region
+                        this.trending = data.filter(s => {
+                            const low = (s.title + s.artist).toLowerCase();
+                            return !low.includes('india') && !low.includes('bollywood') && !low.includes('t-series');
+                        });
                     } catch(e) {}
 
                     setInterval(() => {
@@ -260,29 +284,35 @@
                 },
                 async fetchLyrics(track) {
                     this.lyrics = [];
+                    this.allLyricSources = [];
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         const data = await res.json();
                         if(!data.length) return;
-                        let bestMatch = data[0]; 
-                        if(bestMatch.syncedLyrics) {
-                            this.lyrics = bestMatch.syncedLyrics.split('\n').map(line => {
-                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                                if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
-                                return null;
-                            }).filter(l => l && l.text);
-                        }
+                        this.allLyricSources = data;
+                        this.selectLyricSource(data[0]); // Default to first result
                     } catch(e) {}
                 },
+                selectLyricSource(source) {
+                    this.activeLyricId = source.id;
+                    this.showLyricSources = false;
+                    if(source.syncedLyrics) {
+                        this.lyrics = source.syncedLyrics.split('\n').map(line => {
+                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                            if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                            return null;
+                        }).filter(l => l && l.text);
+                    } else if (source.plainLyrics) {
+                        this.lyrics = source.plainLyrics.split('\n').map(text => ({ time: 0, text }));
+                    }
+                },
                 syncLyrics() {
-                    if(!this.lyrics.length) return;
+                    if(!this.lyrics.length || this.lyrics[0].time === 0) return;
                     let index = this.lyrics.findIndex((line, i) => {
                         const nextLine = this.lyrics[i + 1];
                         return this.currentTime >= line.time && (!nextLine || this.currentTime < nextLine.time);
                     });
-                    if (index !== -1) {
-                        this.currentLineIndex = index;
-                    }
+                    if (index !== -1) this.currentLineIndex = index;
                 },
                 play(s) {
                     this.active = s;
@@ -290,7 +320,7 @@
                     if(ytPlayer?.loadVideoById) {
                         ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
                         this.playing = true;
-                        setTimeout(() => this.fetchLyrics(s), 2000);
+                        setTimeout(() => this.fetchLyrics(s), 1000);
                     }
                 },
                 toggle() {
