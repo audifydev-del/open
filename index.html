@@ -14,12 +14,26 @@
         body { background: #000; color: white; overflow: hidden; height: var(--app-height); font-family: 'Inter', sans-serif; }
         .app-shell { width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto; position: relative; display: flex; flex-direction: column; }
         
+        .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; padding-bottom: 10px; }
+        .shelf::-webkit-scrollbar { display: none; }
+        
+        .bottom-nav { 
+            background: linear-gradient(to top, #000 85%, transparent); 
+            position: absolute; bottom: 0; left: 0; right: 0; 
+            height: 85px; display: flex; justify-content: space-around; 
+            align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); 
+        }
+        
+        .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
+        .nav-item.active { opacity: 1; transform: scale(1.1); }
+
         .player-view { 
             position: absolute; inset: 0; z-index: 100; background: #000; 
             transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); 
             overflow-y: auto; scrollbar-width: none;
         }
-
+        .player-view::-webkit-scrollbar { display: none; }
+        
         .immersive-bg { 
             position: absolute; top: -10%; width: 120%; height: 90vh; 
             object-fit: cover; opacity: 0.8; filter: blur(60px) saturate(180%);
@@ -29,87 +43,153 @@
         }
 
         .main-art { 
-            width: 80%; aspect-ratio: 1/1; margin: 0 auto; 
+            width: 85%; aspect-ratio: 1/1; margin: 0 auto; 
             border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);
             object-fit: cover; z-index: 10; position: relative;
         }
 
         .lyrics-window { 
             margin-top: 10px; 
-            padding: 20px 20px 60px 20px; 
-            height: 350px; /* Locked height so the list stays visible below */
+            padding: 100px 20px 100px 20px; 
+            height: 500px; /* Fixed height to ensure it shows up */
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
             scroll-behavior: smooth;
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
 
         .lyrics-line { 
-            font-size: 1.5rem; 
+            font-size: 1.6rem; 
             font-weight: 800; 
-            line-height: 1.3; 
-            color: rgba(255,255,255,0.3); 
-            transition: all 0.5s ease; 
-            margin-bottom: 25px; 
+            line-height: 1.4; 
+            color: rgba(255,255,255,0.15); 
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+            margin-bottom: 40px; 
+            transform-origin: left;
+            filter: blur(0.5px);
         }
         
         .lyrics-line.active { 
             color: #fff; 
-            transform: scale(1.03); 
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: scale(1.05); 
+            filter: blur(0);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.2);
         }
 
-        .song-list-item {
-            background: rgba(255,255,255,0.05);
-            transition: 0.2s;
-        }
-        .song-list-item:active { transform: scale(0.98); background: rgba(255,255,255,0.1); }
-
+        .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+        .control-pill {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .control-pill.active { background: #fff; color: #000; }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
+    <div class="fixed inset-0 bg-black z-[200] flex items-center justify-center" x-show="splash" x-transition:leave="duration-700">
+        <p class="font-bold tracking-[0.4em] uppercase text-[12px] animate-pulse">Audify</p>
+    </div>
+
     <div class="app-shell" x-cloak>
-        <!-- Home/Library -->
-        <main class="flex-grow overflow-y-auto px-4 pt-12 pb-20 z-10 relative" x-show="!open">
-             <div class="flex justify-between items-center mb-8">
-                <h1 class="text-2xl font-black tracking-tight">Your Library</h1>
+        <!-- Home/Search Views -->
+        <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
+                <div class="flex gap-5 text-lg"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <template x-for="s in trending">
-                    <div @click="play(s)" class="bg-white/5 rounded-md flex items-center gap-3 h-16 overflow-hidden cursor-pointer">
-                        <img :src="s.thumbnail" class="h-full w-16 object-cover">
-                        <span class="text-[11px] font-bold truncate pr-2" x-text="s.title"></span>
-                    </div>
-                </template>
+
+            <div x-show="currentView === 'home'" x-transition>
+                <div class="grid grid-cols-2 gap-3 mb-10">
+                    <template x-for="s in trending.slice(0, 6)">
+                        <div @click="play(s)" class="bg-white/5 border border-white/5 rounded-md flex items-center gap-3 h-16 btn-active overflow-hidden">
+                            <img :src="s.thumbnail" class="h-full w-16 object-cover">
+                            <span class="text-[11px] font-bold truncate leading-tight pr-2" x-text="s.title"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <h2 class="text-xl font-bold mb-4">Recently Played</h2>
+                <div class="shelf">
+                    <template x-for="s in trending">
+                        <div @click="play(s)" class="w-36 flex-shrink-0 btn-active">
+                            <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
+                            <p class="text-xs font-bold truncate mb-0.5" x-text="s.title"></p>
+                            <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="currentView === 'search'" x-transition>
+                <div class="relative mb-8">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-500"></i>
+                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search songs..." class="w-full p-4 pl-12 rounded-xl bg-zinc-900 text-white font-medium outline-none border border-white/5">
+                </div>
+                <div class="space-y-5">
+                    <template x-for="s in searchResults">
+                        <div @click="play(s)" class="flex items-center gap-4 btn-active">
+                            <img :src="s.thumbnail" class="w-14 h-14 rounded-md object-cover">
+                            <div class="overflow-hidden flex-grow">
+                                <p class="font-bold text-sm truncate" x-text="s.title"></p>
+                                <p class="text-xs text-zinc-400 truncate" x-text="s.artist"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
         </main>
 
+        <!-- Mini Player -->
+        <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
+            <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
+            <div class="flex-grow overflow-hidden">
+                <p class="text-[12px] font-bold truncate" x-text="active?.title"></p>
+                <p class="text-[10px] text-zinc-400 truncate" x-text="active?.artist"></p>
+            </div>
+            <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
+            <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
+        </nav>
+
         <!-- Full Player View -->
-        <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
+        <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
-            
-            <div class="p-8 flex flex-col relative z-10">
-                <header class="flex justify-between items-center mb-6">
-                    <i class="fa-solid fa-chevron-down text-xl p-2" @click="open=false"></i>
-                    <p class="text-[10px] font-bold uppercase tracking-widest">Now Playing</p>
+            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-20">
+                <header class="flex justify-between items-center mb-10">
+                    <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
+                    <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
                     <i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i>
                 </header>
                 
-                <img :src="active?.thumbnail" class="main-art mb-8">
+                <img :src="active?.thumbnail" class="main-art mb-10">
 
-                <div class="mb-4">
-                    <h2 class="text-xl font-black mb-1 truncate" x-text="active?.title"></h2>
-                    <p class="text-md text-white/60 font-medium truncate" x-text="active?.artist"></p>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
+                    <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
                 
-                <div class="mb-6">
-                    <div class="relative h-1 bg-white/10 rounded-full mb-2" @click="seek($event)">
+                <div class="mb-10">
+                    <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
                         <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
                     </div>
                     <div class="flex justify-between text-[10px] font-bold text-white/40">
@@ -118,41 +198,35 @@
                     </div>
                 </div>
 
-                <div class="flex justify-around items-center mb-8">
-                    <i class="fa-solid fa-backward-step text-2xl"></i>
-                    <button @click="toggle()" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center">
-                        <i class="fa-solid text-xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
+                <div class="flex justify-around items-center mb-12">
+                    <i class="fa-solid fa-backward-step text-3xl"></i>
+                    <button @click="toggle()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
+                        <i class="fa-solid text-3xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
                     </button>
-                    <i class="fa-solid fa-forward-step text-2xl"></i>
+                    <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
                 <!-- Lyrics Section -->
-                <div class="mb-8">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Lyrics</h3>
-                    <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
-                        <div id="lyrics-container">
-                            <template x-for="(line, index) in lyrics" :key="index">
-                                <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
-                            </template>
-                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10">Loading...</div>
+                <div class="flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
+                        <div class="flex gap-2">
+                            <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''">
+                                <i class="fa-solid fa-arrows-rotate"></i> Sync
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Song List (The List You Wanted Back) -->
-                <div class="mt-4">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Up Next</h3>
-                    <div class="space-y-3 pb-20">
-                        <template x-for="s in trending">
-                            <div @click="play(s)" class="song-list-item p-3 rounded-xl flex items-center gap-4 cursor-pointer">
-                                <img :src="s.thumbnail" class="w-12 h-12 rounded-lg object-cover">
-                                <div class="overflow-hidden flex-grow">
-                                    <p class="font-bold text-xs truncate" x-text="s.title"></p>
-                                    <p class="text-[10px] text-zinc-400 truncate" x-text="s.artist"></p>
-                                </div>
-                                <i class="fa-solid fa-play text-[10px] text-white/20"></i>
-                            </div>
-                        </template>
+                    <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
+                        <div class="space-y-1" id="lyrics-container">
+                            <template x-for="(line, index) in lyrics" :key="index">
+                                <div class="lyrics-line" 
+                                     :id="'line-'+index"
+                                     :class="currentLineIndex === index ? 'active' : ''" 
+                                     x-text="line.text"></div>
+                            </template>
+                            <div x-show="lyrics.length === 0" class="text-center text-white/20 font-bold py-10" x-text="active ? 'Finding lyrics...' : 'Select a song'"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -167,12 +241,14 @@
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('player', {
                 height: '1', width: '1', videoId: '',
-                playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1 },
+                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'playsinline': 1 },
                 events: {
                     'onStateChange': (e) => {
                         if(window.audifyAppInstance) {
                             window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
-                            if(e.data === YT.PlayerState.PLAYING) window.audifyAppInstance.fetchLyrics(window.audifyAppInstance.active);
+                            if(e.data === YT.PlayerState.PLAYING && !window.audifyAppInstance.lyrics.length) {
+                                window.audifyAppInstance.fetchLyrics(window.audifyAppInstance.active);
+                            }
                         }
                     }
                 }
@@ -181,10 +257,13 @@
 
         function audifyApp() {
             return {
-                open: false, playing: false, prog: 0, currentTime: 0, duration: 0,
-                trending: [], active: null, lyrics: [], currentLineIndex: -1, 
-                isUserScrolling: false,
+                splash: true, currentView: 'home', query: '', open: false,
+                playing: false, prog: 0, currentTime: 0, duration: 0,
+                trending: [], searchResults: [], active: null,
+                lyrics: [], currentLineIndex: -1, isSynced: true,
+                userScrollingTimer: null, isUserScrolling: false,
 
+                greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
                 formatTime(s) {
                     if(!s) return "0:00";
                     let m = Math.floor(s/60), sec = Math.floor(s%60);
@@ -192,59 +271,91 @@
                 },
                 async init() {
                     window.audifyAppInstance = this;
-                    const res = await fetch('/search?q=trending+hits');
-                    this.trending = await res.json();
-                    
+                    setTimeout(() => this.splash = false, 1500);
+                    try {
+                        const res = await fetch('/search?q=trending+hits');
+                        const data = await res.json();
+                        this.trending = data.filter(s => {
+                            const low = (s.title + s.artist).toLowerCase();
+                            const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'zee music', 'punjabi', 'bhushan kumar'];
+                            return !banned.some(term => low.includes(term));
+                        });
+                    } catch(e) {}
+
                     setInterval(() => {
-                        if(this.playing && ytPlayer?.getCurrentTime) {
+                        if(this.playing && ytPlayer && ytPlayer.getCurrentTime) {
                             this.currentTime = ytPlayer.getCurrentTime();
                             this.duration = ytPlayer.getDuration();
                             this.prog = (this.currentTime / this.duration) * 100;
                             this.syncLyrics();
                         }
-                    }, 200);
+                    }, 100);
+                },
+                async searchMusic() {
+                    if(!this.query) return;
+                    const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
+                    this.searchResults = await res.json();
                 },
                 async fetchLyrics(track) {
-                    if(!track || this.lyrics.length) return;
+                    if(!track) return;
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
-                        if(data[0]?.syncedLyrics) {
-                            this.lyrics = data[0].syncedLyrics.split('\n').map(line => {
+                        if(!data.length) return;
+                        let source = data[0];
+                        if(source.syncedLyrics) {
+                            this.lyrics = source.syncedLyrics.split('\n').map(line => {
                                 const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                                return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
-                            }).filter(l => l?.text);
+                                if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                                return null;
+                            }).filter(l => l && l.text);
                         }
                     } catch(e) {}
                 },
+                handleUserScroll() {
+                    this.isUserScrolling = true;
+                    clearTimeout(this.userScrollingTimer);
+                    this.userScrollingTimer = setTimeout(() => { this.isUserScrolling = false; }, 2500);
+                },
                 syncLyrics() {
-                    if(!this.lyrics.length) return;
-                    let index = this.lyrics.findLastIndex(l => this.currentTime >= l.time);
+                    if(!this.lyrics.length || this.lyrics[0].time === 0) return;
+                    let index = -1;
+                    for (let i = 0; i < this.lyrics.length; i++) {
+                        if (this.currentTime >= this.lyrics[i].time) { index = i; } else { break; }
+                    }
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
-                        const activeEl = document.getElementById('line-' + index);
-                        const windowEl = document.getElementById('lyrics-window');
-                        if(activeEl && windowEl && !this.isUserScrolling) {
-                            windowEl.scrollTo({ top: activeEl.offsetTop - 100, behavior: 'smooth' });
+                        if(this.isSynced && !this.isUserScrolling) {
+                            const activeEl = document.getElementById('line-' + index);
+                            const windowEl = document.getElementById('lyrics-window');
+                            if(activeEl && windowEl) {
+                                const containerRect = windowEl.getBoundingClientRect();
+                                const activeRect = activeEl.getBoundingClientRect();
+                                const relativeTop = activeRect.top - containerRect.top;
+                                const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height * 0.2);
+                                windowEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+                            }
                         }
                     }
                 },
-                handleUserScroll() {
-                    this.isUserScrolling = true;
-                    clearTimeout(this.scrollTimeout);
-                    this.scrollTimeout = setTimeout(() => this.isUserScrolling = false, 3000);
-                },
                 play(s) {
                     this.active = s;
-                    this.open = true;
                     this.lyrics = [];
                     this.currentLineIndex = -1;
-                    ytPlayer.loadVideoById(s.id);
-                    // Scroll to top of player view when changing songs
-                    document.querySelector('.player-view').scrollTo(0,0);
+                    if(ytPlayer?.loadVideoById) {
+                        ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
+                        this.playing = true;
+                    }
                 },
-                toggle() { this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); },
-                seek(e) { ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); }
+                toggle() {
+                    if(!ytPlayer) return;
+                    this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+                },
+                seek(e) {
+                    if(!ytPlayer) return;
+                    let pct = e.offsetX / e.currentTarget.offsetWidth;
+                    ytPlayer.seekTo(pct * this.duration);
+                }
             }
         }
     </script>
