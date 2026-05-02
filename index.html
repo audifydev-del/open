@@ -72,22 +72,31 @@
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
             padding: 6px 12px; border-radius: 20px; font-size: 10px; font-weight: 800;
             text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; gap: 6px;
+            display: flex; align-items: center; gap: 6px; z-index: 120;
         }
         .control-pill.active { background: #fff; color: #000; }
         
         .source-item {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
-            padding: 12px; border-radius: 12px; margin-bottom: 8px; cursor: pointer;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
+            padding: 14px; border-radius: 12px; margin-bottom: 10px; cursor: pointer;
             transition: 0.2s; display: flex; justify-content: space-between; align-items: center;
         }
-        .source-item.active { border-color: #fff; background: rgba(255,255,255,0.15); }
+        .source-item.active { border-color: #fff; background: rgba(255,255,255,0.3); }
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
         
-        /* Smooth Transition Classes */
         .fade-out { opacity: 0; transform: scale(0.95); }
         .fade-in { opacity: 1; transform: scale(1); }
+        
+        /* Shimmer for fetching text */
+        .shimmer {
+            background: linear-gradient(90deg, #555 25%, #fff 50%, #555 75%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 2s infinite linear;
+        }
+        @keyframes shimmer { to { background-position: -200% 0; } }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
@@ -178,12 +187,10 @@
                     <i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i>
                 </header>
                 
-                <!-- Fixed Square Artwork Container -->
                 <div class="w-[85%] mx-auto aspect-square mb-10">
                     <img :src="active?.thumbnail" class="main-art" :class="changing ? 'fade-out' : 'fade-in'">
                 </div>
 
-                <!-- Text and Progress (Uses Opacity to maintain layout height) -->
                 <div class="transition-all duration-500" :class="changing ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'">
                     <div class="mb-8">
                         <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
@@ -201,7 +208,7 @@
                     </div>
                 </div>
 
-                <!-- Controls (No Shift) -->
+                <!-- Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -215,8 +222,8 @@
                     </button>
                 </div>
 
-                <div class="flex flex-col flex-grow transition-opacity duration-500" :class="changing ? 'opacity-0' : 'opacity-100'">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="flex flex-col flex-grow relative">
+                    <div class="flex justify-between items-center mb-4 relative z-[130]">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
                             <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''"><i class="fa-solid fa-list-ul"></i> Sources</button>
@@ -224,11 +231,31 @@
                         </div>
                     </div>
 
+                    <!-- Fetching Indicator -->
+                    <div x-show="isFetchingLyrics" class="absolute inset-x-0 top-12 text-center z-[110]" x-transition>
+                        <p class="text-[10px] font-black uppercase tracking-[0.3em] shimmer">Fetching Lyrics...</p>
+                    </div>
+
+                    <!-- Sources Dropdown (Fixed visibility) -->
+                    <div x-show="showSources" x-transition class="absolute inset-x-0 top-12 bg-zinc-900/95 backdrop-blur-3xl p-4 rounded-2xl border border-white/20 max-h-[300px] overflow-y-auto z-[150] shadow-2xl">
+                        <template x-for="source in availableSources" :key="source.id">
+                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
+                                <div class="overflow-hidden flex-grow mr-4">
+                                    <p class="text-xs font-bold truncate text-white" x-text="source.trackName"></p>
+                                    <p class="text-[10px] text-white/50 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
+                                </div>
+                                <div class="text-[10px] font-bold text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
+                            </div>
+                        </template>
+                        <div x-show="availableSources.length === 0" class="text-center py-8 text-zinc-500 text-xs">No sources found</div>
+                    </div>
+
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
                         <div class="space-y-1" id="lyrics-container">
                             <template x-for="(line, index) in lyrics">
                                 <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
                             </template>
+                            <div x-show="lyrics.length === 0 && !isFetchingLyrics" class="text-white/20 font-bold text-xl py-20">No lyrics available for this track.</div>
                         </div>
                     </div>
                 </div>
@@ -251,7 +278,7 @@
                             window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
                             if (e.data === YT.PlayerState.ENDED) window.audifyAppInstance.next();
                             if(e.data === YT.PlayerState.PLAYING && !window.audifyAppInstance.lyrics.length) {
-                                setTimeout(() => window.audifyAppInstance.fetchLyrics(window.audifyAppInstance.active), 1500);
+                                window.audifyAppInstance.fetchLyrics(window.audifyAppInstance.active);
                             }
                         }
                     }
@@ -264,7 +291,7 @@
                 launched: false, splash: true, currentView: 'home', query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0, changing: false,
                 trending: [], searchResults: [], active: null,
-                lyrics: [], currentLineIndex: -1, isSynced: true,
+                lyrics: [], currentLineIndex: -1, isSynced: true, isFetchingLyrics: false,
                 userScrollingTimer: null, isUserScrolling: false,
                 showSources: false, availableSources: [], activeSourceId: null,
                 shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
@@ -295,16 +322,21 @@
                     this.searchResults = await res.json();
                 },
                 async fetchLyrics(track) {
-                    if(!track || !ytPlayer?.getDuration) return;
+                    if(!track) return;
+                    this.isFetchingLyrics = true;
+                    this.availableSources = [];
                     try {
-                        const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
+                        const cleanTitle = track.title.replace(/\(Official.*\)|\[Official.*\]/gi, '').trim();
+                        const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
+                        this.isFetchingLyrics = false;
                         if(!data.length) return;
                         this.availableSources = data;
-                        const vDur = ytPlayer.getDuration();
+                        
+                        const vDur = ytPlayer?.getDuration() || 0;
                         let best = data.reduce((prev, curr) => Math.abs(curr.duration - vDur) < Math.abs(prev.duration - vDur) ? curr : prev);
                         this.applySource(best);
-                    } catch(e) {}
+                    } catch(e) { this.isFetchingLyrics = false; }
                 },
                 applySource(source) {
                     this.activeSourceId = source.id;
@@ -321,6 +353,7 @@
                 },
                 async play(s, list = null) {
                     this.changing = true;
+                    this.showSources = false;
                     setTimeout(async () => {
                         if (list) {
                             this.originalQueue = [...list];
@@ -331,7 +364,6 @@
                         this.lyrics = []; this.availableSources = []; this.activeSourceId = null;
                         this.prog = 0; this.currentTime = 0;
                         if(ytPlayer?.loadVideoById) { ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' }); this.playing = true; }
-                        // Short extra delay for content to load
                         setTimeout(() => this.changing = false, 50);
                     }, 400);
                 },
