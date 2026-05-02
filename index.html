@@ -63,6 +63,13 @@
             text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
 
+        .song-list-item {
+            background: rgba(255,255,255,0.05);
+            transition: 0.2s;
+        }
+        .song-list-item:active { transform: scale(0.98); background: rgba(255,255,255,0.1); }
+
+        /* Sources Button & Dropdown Styles */
         .control-pill {
             background: rgba(255,255,255,0.1);
             padding: 6px 12px;
@@ -86,6 +93,7 @@
         .dropdown-item {
             padding: 12px 16px; font-size: 11px; font-weight: 600;
             border-bottom: 1px solid rgba(255,255,255,0.05); transition: 0.2s;
+            cursor: pointer;
         }
         .dropdown-item:last-child { border-bottom: none; }
         .dropdown-item:active { background: rgba(255,255,255,0.1); }
@@ -96,7 +104,7 @@
 <body x-data="audifyApp()" x-init="init()">
 
     <div class="app-shell" x-cloak>
-        <!-- Home/Library View (Always active when player isn't full) -->
+        <!-- Home/Library -->
         <main class="flex-grow overflow-y-auto px-4 pt-12 pb-20 z-10 relative" x-show="!open">
              <div class="flex justify-between items-center mb-8">
                 <h1 class="text-2xl font-black tracking-tight">Your Library</h1>
@@ -147,7 +155,7 @@
                     <i class="fa-solid fa-forward-step text-2xl"></i>
                 </div>
 
-                <!-- Lyrics Section with Sources Button -->
+                <!-- Lyrics Section -->
                 <div class="mb-8 relative">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30">Lyrics</h3>
@@ -156,7 +164,7 @@
                                 <i class="fa-solid fa-arrows-rotate"></i> Sync
                             </button>
                             
-                            <!-- THE SOURCES BUTTON -->
+                            <!-- Sources Button -->
                             <button @click="showSources = !showSources" class="control-pill">
                                 Sources <i class="fa-solid fa-caret-down"></i>
                             </button>
@@ -166,7 +174,7 @@
                                 <template x-for="(source, index) in availableSources" :key="index">
                                     <div class="dropdown-item" @click="selectSource(source)" x-text="source.trackName + ' (' + source.artistName + ')'"></div>
                                 </template>
-                                <div x-show="availableSources.length === 0" class="dropdown-item text-white/40">No other sources</div>
+                                <div x-show="availableSources.length === 0" class="dropdown-item text-white/40">Searching sources...</div>
                             </div>
                         </div>
                     </div>
@@ -183,12 +191,12 @@
                     </div>
                 </div>
 
-                <!-- Up Next / Playlist -->
-                <div class="mt-4 pb-20">
+                <!-- Up Next List (Restored original style) -->
+                <div class="mt-4">
                     <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Up Next</h3>
-                    <div class="space-y-3">
+                    <div class="space-y-3 pb-20">
                         <template x-for="s in trending">
-                            <div @click="play(s)" class="bg-white/5 p-3 rounded-xl flex items-center gap-4 cursor-pointer active:scale-95 transition-transform">
+                            <div @click="play(s)" class="song-list-item p-3 rounded-xl flex items-center gap-4 cursor-pointer">
                                 <img :src="s.thumbnail" class="w-12 h-12 rounded-lg object-cover">
                                 <div class="overflow-hidden flex-grow">
                                     <p class="font-bold text-xs truncate" x-text="s.title"></p>
@@ -254,6 +262,7 @@
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         const data = await res.json();
+                        // Only show sources that actually have synced lyrics
                         this.availableSources = data.filter(s => s.syncedLyrics);
                         if(this.availableSources.length) {
                             this.selectSource(this.availableSources[0]);
@@ -266,6 +275,7 @@
                         return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
                     }).filter(l => l?.text);
                     this.showSources = false;
+                    this.currentLineIndex = -1; // Reset highlight for new source
                 },
                 syncLyrics() {
                     if(!this.isSynced || !this.lyrics.length) return;
