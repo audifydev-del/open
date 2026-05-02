@@ -50,21 +50,22 @@
 
         .lyrics-window { 
             margin-top: 40px; 
-            padding: 40px 20px;
-            height: 350px;
+            padding: 100px 20px; /* Increased padding for better centering */
+            height: 380px;
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+            scroll-behavior: smooth;
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
 
         .lyrics-line { 
             font-size: 1.6rem; font-weight: 800; line-height: 1.4; 
             color: rgba(255,255,255,0.15); transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
-            margin-bottom: 28px; transform-origin: left;
+            margin-bottom: 32px; transform-origin: left;
         }
         
         .lyrics-line.active { color: #fff; transform: scale(1.05); }
@@ -93,7 +94,6 @@
             max-height: 200px;
             overflow-y: auto;
             scrollbar-width: none;
-            -ms-overflow-style: none;
         }
         .sources-list::-webkit-scrollbar { display: none; }
     </style>
@@ -230,7 +230,7 @@
                         </template>
                     </div>
 
-                    <div class="lyrics-window" id="lyrics-window">
+                    <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
                         <div class="space-y-1" id="lyrics-container">
                             <template x-for="(line, index) in lyrics">
                                 <div class="lyrics-line" 
@@ -271,6 +271,7 @@
                 trending: [], searchResults: [], active: null,
                 lyrics: [], currentLineIndex: -1, isSynced: true,
                 showLyricSources: false, allLyricSources: [], activeLyricId: null,
+                userScrollingTimer: null, isUserScrolling: false,
 
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
                 formatTime(s) {
@@ -284,7 +285,6 @@
                     try {
                         const res = await fetch('/search?q=trending+hits');
                         const data = await res.json();
-                        // Front Page Filter (Stays in Search)
                         this.trending = data.filter(s => {
                             const low = (s.title + s.artist).toLowerCase();
                             const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'zee music', 'punjabi', 'bhushan kumar'];
@@ -299,7 +299,7 @@
                             this.prog = (this.currentTime / this.duration) * 100;
                             this.syncLyrics();
                         }
-                    }, 150); // Faster sync check
+                    }, 100);
                 },
                 async searchMusic() {
                     if(!this.query) return;
@@ -330,6 +330,13 @@
                         this.lyrics = source.plainLyrics.split('\n').map(text => ({ time: 0, text }));
                     }
                 },
+                handleUserScroll() {
+                    this.isUserScrolling = true;
+                    clearTimeout(this.userScrollingTimer);
+                    this.userScrollingTimer = setTimeout(() => {
+                        this.isUserScrolling = false;
+                    }, 2500); // Wait 2.5 seconds before auto-sync resumes
+                },
                 syncLyrics() {
                     if(!this.lyrics.length || this.lyrics[0].time === 0) return;
                     
@@ -337,20 +344,22 @@
                     for (let i = 0; i < this.lyrics.length; i++) {
                         if (this.currentTime >= this.lyrics[i].time) {
                             index = i;
-                        } else {
-                            break;
-                        }
+                        } else { break; }
                     }
                     
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
-                        if(this.isSynced) {
+                        if(this.isSynced && !this.isUserScrolling) {
                             const activeEl = document.getElementById('line-' + index);
                             const windowEl = document.getElementById('lyrics-window');
                             if(activeEl && windowEl) {
-                                // Calculate position relative to container ONLY
-                                const targetY = activeEl.offsetTop - (windowEl.offsetHeight / 2) + (activeEl.offsetHeight / 2) - windowEl.offsetTop;
-                                windowEl.scrollTo({ top: targetY, behavior: 'smooth' });
+                                // BETTER MATH: Get the element's position relative to the container center
+                                const containerRect = windowEl.getBoundingClientRect();
+                                const activeRect = activeEl.getBoundingClientRect();
+                                const relativeTop = activeRect.top - containerRect.top;
+                                const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height / 2) + (activeRect.height / 2);
+                                
+                                windowEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
                             }
                         }
                     }
