@@ -13,7 +13,7 @@
         :root { --app-height: 100dvh; }
         body { background: #000; color: white; overflow: hidden; height: var(--app-height); font-family: 'Inter', sans-serif; }
         .app-shell { width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto; position: relative; display: flex; flex-direction: column; }
-        .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; }
+        .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; padding-bottom: 10px; }
         .shelf::-webkit-scrollbar { display: none; }
         .bottom-nav { background: linear-gradient(to top, #000 85%, transparent); position: absolute; bottom: 0; left: 0; right: 0; height: 85px; display: flex; justify-content: space-around; align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
         .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
@@ -21,21 +21,24 @@
         .player-view { position: absolute; inset: 0; z-index: 100; background: #121212; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); overflow-y: auto; }
         .immersive-img { width: 100%; height: 70vh; object-fit: cover; mask-image: linear-gradient(to bottom, black 30%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%); }
         .btn-active:active { transform: scale(0.95); opacity: 0.8; }
-        /* Hidden Embed */
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
+    <!-- Splash Screen -->
     <div class="fixed inset-0 bg-black z-[200] flex items-center justify-center" x-show="splash" x-transition:leave="duration-700">
-        <p class="font-bold tracking-widest uppercase text-xs animate-pulse">Audify</p>
+        <div class="text-center">
+            <div class="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="font-bold tracking-widest uppercase text-[10px]">Audify</p>
+        </div>
     </div>
 
     <div class="app-shell" x-cloak>
         <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl font-bold" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
-                <div class="flex gap-4"><i class="fa-solid fa-gear"></i></div>
+                <div class="flex gap-4 text-xl"><i class="fa-solid fa-gear"></i></div>
             </div>
 
             <!-- Home View -->
@@ -48,11 +51,11 @@
                         </div>
                     </template>
                 </div>
-                <h2 class="text-xl font-bold mb-4">Top Results</h2>
+                <h2 class="text-xl font-bold mb-4">Jump back in</h2>
                 <div class="shelf">
                     <template x-for="s in trending">
                         <div @click="play(s)" class="w-32 flex-shrink-0 btn-active">
-                            <img :src="s.thumbnail" class="w-32 h-32 rounded mb-2 object-cover shadow-lg">
+                            <img :src="s.thumbnail" class="w-32 h-32 rounded shadow-lg mb-2 object-cover">
                             <p class="text-xs font-bold truncate" x-text="s.title"></p>
                             <p class="text-[10px] text-zinc-400 truncate" x-text="s.artist"></p>
                         </div>
@@ -62,7 +65,10 @@
 
             <!-- Search View -->
             <div x-show="currentView === 'search'" x-transition>
-                <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search songs..." class="w-full p-3 rounded-md bg-zinc-800 text-white outline-none mb-6">
+                <div class="relative mb-6">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-zinc-400"></i>
+                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search YouTube Music..." class="w-full p-3 pl-10 rounded-md bg-zinc-800 text-white font-medium outline-none focus:ring-1 ring-white/30">
+                </div>
                 <div class="flex flex-col gap-4">
                     <template x-for="s in searchResults">
                         <div @click="play(s)" class="flex items-center gap-4 btn-active">
@@ -82,6 +88,7 @@
             <img :src="active?.thumbnail" class="w-10 h-10 rounded object-cover">
             <div class="flex-grow overflow-hidden">
                 <p class="text-[11px] font-bold truncate" x-text="active?.title"></p>
+                <p class="text-[9px] text-zinc-400 truncate" x-text="active?.artist"></p>
             </div>
             <button @click.stop="toggle()"><i class="fa-solid text-white p-2" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
@@ -92,21 +99,25 @@
         </nav>
 
         <!-- Full Player -->
-        <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:leave="translate-y-full">
+        <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <div class="min-h-screen p-8 flex flex-col relative">
                 <img :src="active?.thumbnail" class="absolute inset-0 immersive-img opacity-40">
-                <header class="flex justify-between items-center z-10"><i class="fa-solid fa-chevron-down text-2xl" @click="open=false"></i><p class="text-[10px] font-bold uppercase">Now Playing</p><div></div></header>
+                <header class="flex justify-between items-center z-10"><i class="fa-solid fa-chevron-down text-2xl p-2" @click="open=false"></i><p class="text-[10px] font-bold uppercase tracking-widest">Now Playing</p><i class="fa-solid fa-ellipsis p-2"></i></header>
                 
                 <div class="mt-auto z-10 pb-16">
                     <h2 class="text-3xl font-black mb-1 truncate" x-text="active?.title"></h2>
-                    <p class="text-lg text-zinc-300 mb-8" x-text="active?.artist"></p>
+                    <p class="text-lg text-zinc-300 mb-8 truncate" x-text="active?.artist"></p>
                     
+                    <div class="relative h-1 bg-white/20 rounded mb-6">
+                        <div class="absolute h-full bg-white rounded" :style="`width: ${prog}%`"></div>
+                    </div>
+
                     <div class="flex justify-around items-center">
-                        <i class="fa-solid fa-backward-step text-3xl"></i>
-                        <button @click="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center shadow-xl">
+                        <i class="fa-solid fa-backward-step text-3xl btn-active"></i>
+                        <button @click="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center btn-active shadow-xl">
                             <i class="fa-solid text-2xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
                         </button>
-                        <i class="fa-solid fa-forward-step text-3xl"></i>
+                        <i class="fa-solid fa-forward-step text-3xl btn-active"></i>
                     </div>
                 </div>
             </div>
@@ -121,15 +132,24 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         let ytPlayer;
+
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('player', {
-                height: '1', width: '1',
+                height: '1',
+                width: '1',
                 videoId: '',
-                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1 },
+                playerVars: { 
+                    'autoplay': 1, 
+                    'controls': 0, 
+                    'disablekb': 1,
+                    'playsinline': 1,
+                    'origin': window.location.origin 
+                },
                 events: {
                     'onStateChange': (event) => {
-                        // Update playing status based on YT state
-                        window.audifyAppInstance.playing = (event.data === YT.PlayerState.PLAYING);
+                        if (window.audifyAppInstance) {
+                            window.audifyAppInstance.playing = (event.data === YT.PlayerState.PLAYING);
+                        }
                     }
                 }
             });
@@ -138,37 +158,52 @@
         function audifyApp() {
             return {
                 splash: true, currentView: 'home', query: '', open: false,
-                playing: false, trending: [], searchResults: [], active: null,
-                greet() { return ['Good morning','Good afternoon','Good evening'][Math.floor(new Date().getHours()/8)] || 'Hello' },
+                playing: false, prog: 0, trending: [], searchResults: [], active: null,
+                greet() { 
+                    const h = new Date().getHours();
+                    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+                },
                 async init() {
                     window.audifyAppInstance = this;
                     setTimeout(() => this.splash = false, 1500);
                     try {
                         const res = await fetch('/search?q=trending+hits');
                         this.trending = await res.json();
-                    } catch(e) {}
+                    } catch(e) { console.error("Init fetch failed"); }
+
+                    // Track progress
+                    setInterval(() => {
+                        if (this.playing && ytPlayer && ytPlayer.getCurrentTime) {
+                            this.prog = (ytPlayer.getCurrentTime() / ytPlayer.getDuration()) * 100;
+                        }
+                    }, 1000);
                 },
                 async searchMusic() {
                     if(!this.query) return;
-                    const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
-                    this.searchResults = await res.json();
+                    try {
+                        const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
+                        this.searchResults = await res.json();
+                    } catch(e) { console.error("Search failed"); }
                 },
                 play(s) {
                     this.active = s;
                     this.open = true;
                     if (ytPlayer && ytPlayer.loadVideoById) {
-                        ytPlayer.loadVideoById(s.id);
+                        ytPlayer.loadVideoById({
+                            videoId: s.id,
+                            suggestedQuality: 'small'
+                        });
                         this.playing = true;
                     }
                 },
                 toggle() {
-                    if (!ytPlayer) return;
-                    if (this.playing) {
+                    if (!ytPlayer || !ytPlayer.getPlayerState) return;
+                    const state = ytPlayer.getPlayerState();
+                    if (state === YT.PlayerState.PLAYING) {
                         ytPlayer.pauseVideo();
                     } else {
                         ytPlayer.playVideo();
                     }
-                    this.playing = !this.playing;
                 }
             }
         }
