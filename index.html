@@ -50,8 +50,7 @@
 
         .lyrics-window { 
             margin-top: 10px; 
-            /* Massive bottom padding allows last lines to scroll to center */
-            padding: 140px 20px 250px 20px; 
+            padding: 140px 20px 40px 20px; /* Reduced bottom padding */
             height: 480px; 
             overflow-y: auto;
             scrollbar-width: none; 
@@ -69,7 +68,7 @@
             line-height: 1.6; 
             color: rgba(255,255,255,0.15); 
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
-            margin-bottom: 48px; /* Increased distance */
+            margin-bottom: 48px; 
             transform-origin: left;
             filter: blur(0.5px);
         }
@@ -78,7 +77,6 @@
             color: #fff; 
             transform: scale(1.08); 
             filter: blur(0);
-            /* Neon White Glow */
             text-shadow: 0 0 12px rgba(255, 255, 255, 0.7), 0 0 24px rgba(255, 255, 255, 0.3);
         }
 
@@ -101,13 +99,6 @@
             gap: 6px;
         }
         .control-pill.active { background: #fff; color: #000; }
-
-        .sources-list {
-            max-height: 200px;
-            overflow-y: auto;
-            scrollbar-width: none;
-        }
-        .sources-list::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
@@ -180,7 +171,7 @@
 
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
-            <div class="min-h-screen p-8 flex flex-col relative z-10">
+            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-12"> <!-- Added padding bottom for safe area -->
                 <header class="flex justify-between items-center mb-10">
                     <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
                     <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
@@ -219,25 +210,7 @@
                             <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''">
                                 <i class="fa-solid fa-arrows-rotate"></i> Sync
                             </button>
-                            <button @click="showLyricSources = !showLyricSources" class="control-pill">
-                                Sources <i class="fa-solid fa-caret-down"></i>
-                            </button>
                         </div>
-                    </div>
-
-                    <div x-show="showLyricSources" class="mb-6 space-y-2 bg-white/5 p-4 rounded-xl border border-white/5 sources-list" x-transition>
-                        <template x-for="(source, idx) in allLyricSources">
-                            <div @click="selectLyricSource(source)" class="flex justify-between items-center p-3 hover:bg-white/10 rounded-lg cursor-pointer border-b border-white/5 last:border-0">
-                                <div class="flex flex-col">
-                                    <span class="text-[11px] font-bold text-white" x-text="source.trackName"></span>
-                                    <span class="text-[9px] text-white/50 uppercase" x-text="source.artistName"></span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="text-[9px] px-1.5 py-0.5 bg-white/10 rounded text-white/70" x-text="source.duration ? formatTime(source.duration) : 'N/A'"></span>
-                                    <i x-show="activeLyricId === source.id" class="fa-solid fa-circle-check text-white text-xs"></i>
-                                </div>
-                            </div>
-                        </template>
                     </div>
 
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
@@ -252,7 +225,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="h-32"></div>
             </div>
         </div>
         
@@ -270,7 +242,7 @@
                     'onStateChange': (e) => {
                         if(window.audifyAppInstance) {
                             window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
-                            if(e.data === YT.PlayerState.PLAYING && !window.audifyAppInstance.allLyricSources.length) {
+                            if(e.data === YT.PlayerState.PLAYING && !window.audifyAppInstance.lyrics.length) {
                                 window.audifyAppInstance.fetchLyrics(window.audifyAppInstance.active);
                             }
                         }
@@ -285,7 +257,6 @@
                 playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], searchResults: [], active: null,
                 lyrics: [], currentLineIndex: -1, isSynced: true,
-                showLyricSources: false, allLyricSources: [], activeLyricId: null,
                 userScrollingTimer: null, isUserScrolling: false,
 
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
@@ -323,36 +294,19 @@
                 },
                 async fetchLyrics(track) {
                     if(!track) return;
-                    this.lyrics = [];
-                    this.allLyricSources = [];
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
                         if(!data.length) return;
-                        this.allLyricSources = data;
-                        let bestMatch = data[0];
-                        if (this.duration > 0) {
-                            let minDiff = Math.abs(data[0].duration - this.duration);
-                            data.forEach(source => {
-                                let diff = Math.abs(source.duration - this.duration);
-                                if (diff < minDiff) { minDiff = diff; bestMatch = source; }
-                            });
+                        let source = data[0];
+                        if(source.syncedLyrics) {
+                            this.lyrics = source.syncedLyrics.split('\n').map(line => {
+                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                                if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                                return null;
+                            }).filter(l => l && l.text);
                         }
-                        this.selectLyricSource(bestMatch);
                     } catch(e) {}
-                },
-                selectLyricSource(source) {
-                    this.activeLyricId = source.id;
-                    this.showLyricSources = false;
-                    if(source.syncedLyrics) {
-                        this.lyrics = source.syncedLyrics.split('\n').map(line => {
-                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                            if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
-                            return null;
-                        }).filter(l => l && l.text);
-                    } else if (source.plainLyrics) {
-                        this.lyrics = source.plainLyrics.split('\n').map(text => ({ time: 0, text }));
-                    }
                 },
                 handleUserScroll() {
                     this.isUserScrolling = true;
@@ -374,7 +328,6 @@
                                 const containerRect = windowEl.getBoundingClientRect();
                                 const activeRect = activeEl.getBoundingClientRect();
                                 const relativeTop = activeRect.top - containerRect.top;
-                                // Places active line at about 1/4th of the window for a balanced view
                                 const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height * 0.25);
                                 windowEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
                             }
@@ -383,8 +336,8 @@
                 },
                 play(s) {
                     this.active = s;
+                    this.lyrics = [];
                     this.currentLineIndex = -1;
-                    this.allLyricSources = [];
                     if(ytPlayer?.loadVideoById) {
                         ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
                         this.playing = true;
