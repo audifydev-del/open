@@ -38,13 +38,14 @@
             object-fit: cover; filter: blur(60px) saturate(180%);
             mask-image: linear-gradient(to bottom, black 10%, transparent 90%);
             -webkit-mask-image: linear-gradient(to bottom, black 10%, transparent 90%);
-            z-index: 0; transform: scale(1.2);
+            z-index: 0; transform: scale(1.2); transition: opacity 0.5s ease;
         }
 
         .main-art { 
-            width: 85%; aspect-ratio: 1/1; margin: 0 auto; 
+            width: 100%; height: 100%;
             border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);
             object-fit: cover; z-index: 10; position: relative;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .lyrics-window { 
@@ -83,6 +84,10 @@
         .source-item.active { border-color: #fff; background: rgba(255,255,255,0.15); }
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        
+        /* Smooth Transition Classes */
+        .fade-out { opacity: 0; transform: scale(0.95); }
+        .fade-in { opacity: 1; transform: scale(1); }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
@@ -164,15 +169,7 @@
         <!-- Full Player View -->
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             
-            <!-- Immersive Background (Fades on change) -->
-            <img :src="active?.thumbnail" class="immersive-bg" 
-                 x-show="!changing" 
-                 x-transition:enter="transition ease-out duration-500"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-0.8"
-                 x-transition:leave="transition ease-in duration-300"
-                 x-transition:leave-start="opacity-0.8"
-                 x-transition:leave-end="opacity-0">
+            <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
 
             <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
                 <header class="flex justify-between items-center mb-10">
@@ -181,27 +178,13 @@
                     <i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i>
                 </header>
                 
-                <!-- Main Artwork (Fades/Scales on change) -->
-                <div class="flex justify-center mb-10 h-[300px]">
-                    <img :src="active?.thumbnail" class="main-art" 
-                         x-show="!changing"
-                         x-transition:enter="transition ease-out duration-500"
-                         x-transition:enter-start="opacity-0 scale-95"
-                         x-transition:enter-end="opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-300"
-                         x-transition:leave-start="opacity-100 scale-100"
-                         x-transition:leave-end="opacity-0 scale-95">
+                <!-- Fixed Square Artwork Container -->
+                <div class="w-[85%] mx-auto aspect-square mb-10">
+                    <img :src="active?.thumbnail" class="main-art" :class="changing ? 'fade-out' : 'fade-in'">
                 </div>
 
-                <!-- Text and Progress (Fades on change) -->
-                <div x-show="!changing" 
-                     x-transition:enter="transition ease-out duration-500 delay-100"
-                     x-transition:enter-start="opacity-0 translate-y-2"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0">
-                    
+                <!-- Text and Progress (Uses Opacity to maintain layout height) -->
+                <div class="transition-all duration-500" :class="changing ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'">
                     <div class="mb-8">
                         <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
                         <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
@@ -218,7 +201,7 @@
                     </div>
                 </div>
 
-                <!-- Controls -->
+                <!-- Controls (No Shift) -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -232,25 +215,13 @@
                     </button>
                 </div>
 
-                <div x-show="!changing" x-transition class="flex flex-col flex-grow">
+                <div class="flex flex-col flex-grow transition-opacity duration-500" :class="changing ? 'opacity-0' : 'opacity-100'">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
                             <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''"><i class="fa-solid fa-list-ul"></i> Sources</button>
                             <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>
                         </div>
-                    </div>
-
-                    <div x-show="showSources" x-transition class="bg-zinc-900/95 backdrop-blur-xl p-4 rounded-2xl mb-4 border border-white/10 max-h-60 overflow-y-auto z-[110]">
-                        <template x-for="source in availableSources">
-                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
-                                <div class="overflow-hidden flex-grow mr-2">
-                                    <div class="flex items-center gap-2"><p class="text-xs font-bold truncate" x-text="source.trackName"></p></div>
-                                    <p class="text-[10px] text-white/50 truncate" x-text="source.albumName"></p>
-                                </div>
-                                <div class="text-[10px] font-mono text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
-                            </div>
-                        </template>
                     </div>
 
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
@@ -360,8 +331,9 @@
                         this.lyrics = []; this.availableSources = []; this.activeSourceId = null;
                         this.prog = 0; this.currentTime = 0;
                         if(ytPlayer?.loadVideoById) { ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' }); this.playing = true; }
-                        this.changing = false;
-                    }, 300);
+                        // Short extra delay for content to load
+                        setTimeout(() => this.changing = false, 50);
+                    }, 400);
                 },
                 next() {
                     if (this.repeatMode === 'one') { ytPlayer.seekTo(0); return; }
