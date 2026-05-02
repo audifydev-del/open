@@ -10,186 +10,187 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         [x-cloak] { display: none !important; }
-        :root { --app-height: 100dvh; --dynamic-surface: #121212; }
+        :root { --app-height: 100dvh; }
         body { background: #000; color: white; overflow: hidden; height: var(--app-height); font-family: 'Inter', sans-serif; }
         .app-shell { width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto; position: relative; display: flex; flex-direction: column; }
-        .home-bg-gradient { position: absolute; inset: 0 auto auto 0; width: 100%; height: 300px; background: linear-gradient(to bottom, #2a2a2a 0%, #000 100%); opacity: 0.6; }
         .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; }
         .shelf::-webkit-scrollbar { display: none; }
         .bottom-nav { background: linear-gradient(to top, #000 85%, transparent); position: absolute; bottom: 0; left: 0; right: 0; height: 85px; display: flex; justify-content: space-around; align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: all 0.2s; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; }
         .nav-item.active { opacity: 1; transform: scale(1.1); }
-        .player-view { position: absolute; inset: 0; z-index: 100; background: var(--dynamic-surface); transition: background 1.2s; overflow-y: auto; scrollbar-width: none; }
+        .player-view { position: absolute; inset: 0; z-index: 100; background: #121212; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); overflow-y: auto; scrollbar-width: none; }
         .player-view::-webkit-scrollbar { display: none; }
-        .player-enter { animation: pEnt 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
-        .player-leave { animation: pLev 0.4s ease-in forwards; }
-        @keyframes pEnt { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes pLev { from { transform: translateY(0); } to { transform: translateY(100%); } }
         .immersive-img { width: 100%; height: 75vh; object-fit: cover; mask-image: linear-gradient(to bottom, black 40%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%); }
-        .progress-fill { transition: width 0.1s linear; }
-        .lyrics-window { mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); }
-        .lyrics-line { min-height: 80px; font-size: 2rem; font-weight: 900; color: rgba(255,255,255,0.1); transition: all 0.4s; filter: blur(1.5px); text-transform: uppercase; }
-        .lyrics-line.active { color: #fff; transform: scale(1.05); filter: blur(0); text-shadow: 0 0 15px rgba(255,255,255,0.5); }
-        .btn-active:active { transform: scale(0.95); opacity: 0.8; }
+        .lyrics-line { min-height: 60px; font-size: 1.8rem; font-weight: 900; color: rgba(255,255,255,0.1); transition: 0.4s; filter: blur(1px); }
+        .lyrics-line.active { color: #fff; transform: scale(1.05); filter: blur(0); text-shadow: 0 0 15px rgba(255,255,255,0.3); }
     </style>
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
+    <!-- Splash Screen -->
     <div class="fixed inset-0 bg-black z-[200] flex items-center justify-center" x-show="splash" x-transition:leave="duration-700">
-        <img src="assets/ic.png" class="w-32 animate-pulse">
+        <img src="assets/ic.png" class="w-24 animate-pulse" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3844/3844724.png'">
     </div>
 
     <div class="app-shell" x-cloak>
-        <div class="flex-grow overflow-hidden relative">
-            <div class="home-bg-gradient"></div>
-            <main class="h-full overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
-                <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-2xl font-bold" x-text="currentView === 'home' ? greet() : currentView"></h1>
-                    <div class="flex gap-4"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
-                </div>
-
-                <!-- Views logic -->
-                <div x-show="currentView === 'home'" x-transition>
-                    <div class="grid grid-cols-2 gap-2 mb-8">
-                        <template x-for="s in songs.slice(0, 6)">
-                            <div @click="play(s)" class="bg-white/10 rounded flex items-center gap-2 h-14 btn-active overflow-hidden">
-                                <img :src="s.thumb || 'assets/placeholder.png'" class="h-full w-14 object-cover">
-                                <span class="text-[10px] font-bold truncate pr-1" x-text="s.title"></span>
-                            </div>
-                        </template>
-                    </div>
-                    <h2 class="text-xl font-bold mb-4">Jump back in</h2>
-                    <div class="shelf">
-                        <template x-for="s in songs">
-                            <div @click="play(s)" class="w-32 flex-shrink-0 btn-active">
-                                <img :src="s.thumb || 'assets/placeholder.png'" class="w-32 h-32 rounded mb-2">
-                                <p class="text-xs font-bold truncate" x-text="s.title"></p>
-                                <p class="text-[10px] text-zinc-400 truncate" x-text="s.artist"></p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div x-show="currentView === 'search'" x-transition>
-                    <input type="text" x-model="query" placeholder="Search..." class="w-full p-3 rounded-lg bg-white text-black font-bold mb-6 outline-none">
-                    <div class="flex flex-col gap-4">
-                        <template x-for="s in filtered()">
-                            <div @click="play(s)" class="flex items-center gap-4 btn-active">
-                                <img :src="s.thumb" class="w-12 h-12 rounded">
-                                <div><p class="font-bold text-sm" x-text="s.title"></p><p class="text-xs text-zinc-400" x-text="s.artist"></p></div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </main>
-
-            <!-- Mini Player -->
-            <div x-show="active && !open" @click="open=true" class="fixed bottom-24 left-2 right-2 max-w-[430px] mx-auto bg-[#282828] h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
-                <img :src="active?.thumb" class="w-10 h-10 rounded">
-                <div class="flex-grow overflow-hidden"><p class="text-[11px] font-bold truncate" x-text="active?.title"></p></div>
-                <button @click.stop="toggle()"><i class="fa-solid text-white p-2" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
+        <main class="h-full overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
+                <div class="flex gap-4"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
             </div>
+
+            <!-- Home View -->
+            <div x-show="currentView === 'home'" x-transition>
+                <h2 class="text-xl font-bold mb-4">Trending Now</h2>
+                <div class="grid grid-cols-2 gap-2 mb-8">
+                    <template x-for="s in trending">
+                        <div @click="play(s)" class="bg-white/10 rounded flex items-center gap-2 h-14 active:scale-95 transition overflow-hidden">
+                            <img :src="s.album.cover_medium" class="h-full w-14 object-cover">
+                            <span class="text-[10px] font-bold truncate pr-1" x-text="s.title"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Search View -->
+            <div x-show="currentView === 'search'" x-transition>
+                <div class="relative mb-6">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-zinc-400"></i>
+                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Artists, songs, or podcasts" class="w-full p-3 pl-10 rounded-md bg-zinc-800 text-white font-medium outline-none focus:ring-2 ring-white/20">
+                </div>
+                <div class="flex flex-col gap-4">
+                    <template x-for="s in searchResults">
+                        <div @click="play(s)" class="flex items-center gap-4 active:opacity-60 transition">
+                            <img :src="s.album.cover_small" class="w-12 h-12 rounded">
+                            <div class="overflow-hidden">
+                                <p class="font-bold text-sm truncate" x-text="s.title"></p>
+                                <p class="text-xs text-zinc-400 truncate" x-text="s.artist.name"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mini Player -->
+        <div x-show="active && !open" @click="open=true" class="fixed bottom-24 left-2 right-2 max-w-[430px] mx-auto bg-zinc-900 h-14 rounded-md flex items-center px-2 gap-3 z-40 shadow-2xl">
+            <img :src="active?.album.cover_small" class="w-10 h-10 rounded">
+            <div class="flex-grow overflow-hidden">
+                <p class="text-[11px] font-bold truncate" x-text="active?.title"></p>
+                <p class="text-[9px] text-zinc-400 truncate" x-text="active?.artist.name"></p>
+            </div>
+            <button @click.stop="toggle()"><i class="fa-solid text-white p-2" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
         <nav class="bottom-nav">
-            <template x-for="v in ['home', 'search', 'library']">
-                <div class="nav-item" :class="currentView === v ? 'active' : ''" @click="currentView = v">
-                    <i class="fa-solid text-xl" :class="v==='home'?'fa-house':(v==='search'?'fa-magnifying-glass':'fa-lines-leaning')"></i>
-                    <span class="text-[10px] capitalize" x-text="v"></span>
-                </div>
-            </template>
+            <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px]">Home</span></div>
+            <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px]">Search</span></div>
         </nav>
 
         <!-- Full Player -->
-        <div x-show="open" class="player-view" :class="closeAnim ? 'player-leave' : 'player-enter'">
-            <div class="h-screen p-8 flex flex-col relative">
-                <img :src="active?.thumb" class="absolute inset-0 immersive-img opacity-60">
-                <header class="flex justify-between items-center z-10"><i class="fa-solid fa-chevron-down text-2xl" @click="closeAnim=true; setTimeout(()=>{open=false;closeAnim=false},400)"></i><p class="text-[10px] font-bold uppercase">Now Playing</p><i class="fa-solid fa-ellipsis"></i></header>
+        <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
+            <div class="min-h-screen p-8 flex flex-col relative">
+                <img :src="active?.album.cover_xl" class="absolute inset-0 immersive-img opacity-40">
+                <header class="flex justify-between items-center z-10"><i class="fa-solid fa-chevron-down text-2xl" @click="open=false"></i><p class="text-[10px] font-bold uppercase tracking-widest">Playing from Search</p><i class="fa-solid fa-ellipsis"></i></header>
+                
                 <div class="mt-auto z-10 pb-12">
-                    <h2 class="text-3xl font-black" x-text="active?.title"></h2>
-                    <p class="text-lg opacity-60 mb-8" x-text="active?.artist"></p>
+                    <h2 class="text-3xl font-black mb-1" x-text="active?.title"></h2>
+                    <p class="text-lg text-zinc-300 mb-8" x-text="active?.artist.name"></p>
                     <div class="relative h-1 bg-white/20 rounded mb-4" @click="seek($event)">
-                        <div class="absolute h-full bg-white rounded progress-fill" :style="`width: ${prog}%`"></div>
+                        <div class="absolute h-full bg-white rounded transition-all" :style="`width: ${prog}%`"></div>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <i class="fa-solid fa-backward-step text-3xl" @click="prev()"></i>
-                        <button @click="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center"><i class="fa-solid text-3xl" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
-                        <i class="fa-solid fa-forward-step text-3xl" @click="next()"></i>
+                    <div class="flex justify-around items-center">
+                        <i class="fa-solid fa-backward-step text-3xl"></i>
+                        <button @click="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center"><i class="fa-solid text-2xl" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
+                        <i class="fa-solid fa-forward-step text-3xl"></i>
                     </div>
                 </div>
-            </div>
-            <!-- Lyrics Section -->
-            <div class="h-screen px-8 pt-12 flex flex-col">
-                <div class="lyrics-window overflow-y-auto flex-grow" id="lyricBox">
-                    <div class="py-[30vh]">
+
+                <!-- Lyrics -->
+                <div class="mt-12 z-10">
+                    <h3 class="text-xs font-bold uppercase opacity-50 mb-4">Lyrics</h3>
+                    <div class="lyrics-window h-96 overflow-y-auto" id="lyricBox">
                         <template x-for="(l, i) in lyrics">
-                            <div :id="'l-'+i" class="lyrics-line" :class="i === lIdx ? 'active' : ''" x-text="l.text"></div>
+                            <div class="lyrics-line" :class="i === lIdx ? 'active' : ''" x-text="l.text"></div>
                         </template>
+                        <div x-show="!lyrics.length" class="opacity-30 italic">No lyrics found for this track.</div>
                     </div>
                 </div>
             </div>
         </div>
-        <audio id="aud"></audio>
+        <audio id="aud" @ended="playing=false"></audio>
     </div>
 
     <script>
         function audifyApp() {
             return {
-                splash: true, currentView: 'home', query: '', open: false, closeAnim: false,
-                playing: false, prog: 0, songs: [], active: null, lyrics: [], lIdx: -1,
-                greet() { return ['Good morning','Good afternoon','Good evening'][Math.floor(new Date().getHours()/8)] || 'Hello' },
-                filtered() { return this.songs.filter(s => s.title.toLowerCase().includes(this.query.toLowerCase())) },
+                splash: true, currentView: 'home', query: '', open: false,
+                playing: false, prog: 0, trending: [], searchResults: [], active: null, lyrics: [], lIdx: -1,
+                greet() { 
+                    const h = new Date().getHours();
+                    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+                },
                 async init() {
-                    setTimeout(() => this.splash = false, 2000);
+                    setTimeout(() => this.splash = false, 1500);
                     const audio = document.getElementById('aud');
-                    try {
-                        const srv = await (await fetch('./serverlist.json')).json();
-                        const list = await (await fetch('./list.json')).json();
-                        this.songs = list.reverse().map(s => {
-                            const p = s.split(' - ');
-                            return { title: p[1]?.trim(), artist: p[0]?.trim(), url: `${srv[0].url}/${s.trim()}.mp3`, thumb: null };
-                        });
-                        this.active = this.songs[0];
-                        this.loadThumbs();
-                    } catch(e){}
                     
+                    // Fetch Trending for Home Screen
+                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/chart')}`);
+                    const data = JSON.parse((await res.json()).contents);
+                    this.trending = data.tracks.data;
+
                     audio.ontimeupdate = () => {
                         this.prog = (audio.currentTime / audio.duration) * 100;
                         let found = this.lyrics.findLastIndex(l => audio.currentTime >= l.time && l.time !== -1);
                         if (found !== this.lIdx) {
                             this.lIdx = found;
-                            const el = document.getElementById('l-'+found);
-                            if(el) document.getElementById('lyricBox').scrollTo({top: el.offsetTop - 200, behavior: 'smooth'});
+                            const el = document.querySelectorAll('.lyrics-line')[found];
+                            if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
                     };
                 },
-                loadThumbs() {
-                    this.songs.forEach((s, i) => {
-                        fetch(`https://api.deezer.com/search?q=${encodeURIComponent(s.title)}&limit=1`)
-                        .then(r => r.json()).then(d => { if(d.data?.[0]) this.songs[i].thumb = d.data[0].album.cover_xl; });
-                    });
+                async searchMusic() {
+                    if(!this.query) return;
+                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/search?q=' + this.query)}`);
+                    const data = JSON.parse((await res.json()).contents);
+                    this.searchResults = data.data;
                 },
                 async fetchLyrics(s) {
                     this.lyrics = [];
-                    const res = await (await fetch(`https://lrclib.net/api/search?artist_name=${s.artist}&track_name=${s.title}`)).json();
-                    if(res[0]) {
-                        const raw = res[0].syncedLyrics || res[0].plainLyrics || "";
-                        this.lyrics = raw.split('\n').map(line => {
-                            const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
-                            return { time: m ? parseInt(m[1])*60 + parseFloat(m[2]) : -1, text: line.replace(/\[.*?\]/g,'').trim() };
-                        }).filter(l => l.text);
-                    }
+                    try {
+                        const res = await fetch(`https://lrclib.net/api/search?artist_name=${s.artist.name}&track_name=${s.title}`);
+                        const data = await res.json();
+                        if(data[0]) {
+                            const raw = data[0].syncedLyrics || data[0].plainLyrics || "";
+                            this.lyrics = raw.split('\n').map(line => {
+                                const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
+                                return { 
+                                    time: m ? parseInt(m[1])*60 + parseFloat(m[2]) : -1, 
+                                    text: line.replace(/\[.*?\]/g,'').trim() 
+                                };
+                            }).filter(l => l.text);
+                        }
+                    } catch(e) { console.log("Lyrics error"); }
                 },
                 play(s) {
                     this.active = s;
                     const a = document.getElementById('aud');
-                    a.src = s.url; a.play(); this.playing = true;
+                    // Deezer API provides a 'preview' link which is a 30s clip. 
+                    // For full songs, you'd usually need a developer token, but 'preview' works for demos.
+                    a.src = s.preview; 
+                    a.play();
+                    this.playing = true;
                     this.fetchLyrics(s);
                 },
-                toggle() { const a = document.getElementById('aud'); a.paused ? a.play() : a.pause(); this.playing = !a.paused; },
-                next() { let i = this.songs.indexOf(this.active); this.play(this.songs[(i+1)%this.songs.length]); },
-                prev() { let i = this.songs.indexOf(this.active); this.play(this.songs[(i-1+this.songs.length)%this.songs.length]); },
-                seek(e) { const a = document.getElementById('aud'); a.currentTime = (e.offsetX / e.target.offsetWidth) * a.duration; }
+                toggle() { 
+                    const a = document.getElementById('aud');
+                    a.paused ? a.play() : a.pause();
+                    this.playing = !a.paused;
+                },
+                seek(e) {
+                    const a = document.getElementById('aud');
+                    a.currentTime = (e.offsetX / e.currentTarget.offsetWidth) * a.duration;
+                }
             }
         }
     </script>
