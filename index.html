@@ -50,17 +50,14 @@
 
         .lyrics-window { 
             margin-top: 10px; 
-            /* Minimized bottom padding to remove the dead space */
-            padding: 120px 20px 20px 20px; 
-            height: auto;
-            max-height: 550px; 
+            padding: 100px 20px 100px 20px; 
+            height: 500px; /* Fixed height to ensure it shows up */
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            /* Adjusted mask to show more lyrics at the bottom */
-            mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 95%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 95%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
             scroll-behavior: smooth;
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
@@ -111,6 +108,7 @@
     </div>
 
     <div class="app-shell" x-cloak>
+        <!-- Home/Search Views -->
         <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
             <div class="flex justify-between items-center mb-8">
                 <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
@@ -158,6 +156,7 @@
             </div>
         </main>
 
+        <!-- Mini Player -->
         <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
@@ -172,9 +171,10 @@
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
         </nav>
 
+        <!-- Full Player View -->
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
-            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
+            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-20">
                 <header class="flex justify-between items-center mb-10">
                     <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
                     <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
@@ -206,7 +206,8 @@
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
-                <div class="flex flex-col flex-grow">
+                <!-- Lyrics Section -->
+                <div class="flex flex-col">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
@@ -218,7 +219,7 @@
 
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
                         <div class="space-y-1" id="lyrics-container">
-                            <template x-for="(line, index) in lyrics">
+                            <template x-for="(line, index) in lyrics" :key="index">
                                 <div class="lyrics-line" 
                                      :id="'line-'+index"
                                      :class="currentLineIndex === index ? 'active' : ''" 
@@ -331,7 +332,6 @@
                                 const containerRect = windowEl.getBoundingClientRect();
                                 const activeRect = activeEl.getBoundingClientRect();
                                 const relativeTop = activeRect.top - containerRect.top;
-                                // Shifted the focal point slightly higher to keep more upcoming lines visible
                                 const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height * 0.2);
                                 windowEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
                             }
