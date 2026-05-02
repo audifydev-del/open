@@ -48,19 +48,26 @@
             object-fit: cover; z-index: 10; position: relative;
         }
 
-        /* Adjusted Lyrics Styling: Static & Readable */
+        /* Lyrics Styling: Highlighting remains, automatic scrolling is gone */
         .lyrics-window { 
             margin-top: 40px; 
             padding-bottom: 120px; 
-            transition: all 0.5s ease;
         }
         .lyrics-line { 
             font-size: 1.6rem; 
             font-weight: 800; 
             line-height: 1.3; 
-            color: rgba(255,255,255,0.85); /* Increased visibility for static reading */
+            color: rgba(255,255,255,0.2); 
+            transition: all 0.4s ease; 
             margin-bottom: 24px; 
             transform-origin: left;
+            filter: blur(1px);
+        }
+        /* The Highlight state */
+        .lyrics-line.active { 
+            color: #fff; 
+            transform: scale(1.05); 
+            filter: blur(0px);
         }
 
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
@@ -69,7 +76,6 @@
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
-    <!-- Splash Screen -->
     <div class="fixed inset-0 bg-black z-[200] flex items-center justify-center" x-show="splash" x-transition:leave="duration-700">
         <p class="font-bold tracking-[0.4em] uppercase text-[12px] animate-pulse">Audify</p>
     </div>
@@ -81,7 +87,6 @@
                 <div class="flex gap-5 text-lg"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
             </div>
 
-            <!-- Home View -->
             <div x-show="currentView === 'home'" x-transition>
                 <div class="grid grid-cols-2 gap-3 mb-10">
                     <template x-for="s in trending.slice(0, 6)">
@@ -92,7 +97,7 @@
                     </template>
                 </div>
 
-                <h2 class="text-xl font-bold mb-4">Jump back in</h2>
+                <h2 class="text-xl font-bold mb-4">Recently Played</h2>
                 <div class="shelf">
                     <template x-for="s in trending">
                         <div @click="play(s)" class="w-36 flex-shrink-0 btn-active">
@@ -104,7 +109,6 @@
                 </div>
             </div>
 
-            <!-- Search View -->
             <div x-show="currentView === 'search'" x-transition>
                 <div class="relative mb-8">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-500"></i>
@@ -124,7 +128,6 @@
             </div>
         </main>
 
-        <!-- Mini Player -->
         <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
@@ -142,7 +145,6 @@
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
         </nav>
 
-        <!-- Full Player -->
         <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
             <div class="min-h-screen p-8 flex flex-col relative z-10">
@@ -159,7 +161,6 @@
                     <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
                 
-                <!-- Progress Slider -->
                 <div class="mb-10">
                     <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
                         <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
@@ -178,15 +179,13 @@
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
-                <!-- Lyrics Window (No Automation) -->
                 <div class="lyrics-window">
                     <h3 class="text-xs font-black uppercase tracking-widest text-white/30 mb-6">Lyrics</h3>
                     <div class="space-y-6" id="lyrics-container">
-                        <template x-if="!lyrics.length">
-                            <p class="text-white/20 italic">Searching for lyrics...</p>
-                        </template>
                         <template x-for="(line, index) in lyrics">
-                            <div class="lyrics-line" x-text="line.text"></div>
+                            <div class="lyrics-line" 
+                                 :class="currentLineIndex === index ? 'active' : ''" 
+                                 x-text="line.text"></div>
                         </template>
                     </div>
                 </div>
@@ -217,7 +216,7 @@
                 splash: true, currentView: 'home', query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0,
                 trending: [], searchResults: [], active: null,
-                lyrics: [], 
+                lyrics: [], currentLineIndex: -1,
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
                 formatTime(s) {
                     if(!s) return "0:00";
@@ -238,9 +237,9 @@
                             this.currentTime = ytPlayer.getCurrentTime();
                             this.duration = ytPlayer.getDuration();
                             this.prog = (this.currentTime / this.duration) * 100;
-                            // Automation follow call removed here
+                            this.syncLyrics();
                         }
-                    }, 300);
+                    }, 250);
                 },
                 async searchMusic() {
                     if(!this.query) return;
@@ -253,34 +252,33 @@
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         const data = await res.json();
                         if(!data.length) return;
-
-                        let targetDuration = this.duration;
-                        let bestMatch = data.reduce((prev, curr) => {
-                            return (Math.abs(curr.duration - targetDuration) < Math.abs(prev.duration - targetDuration) ? curr : prev);
-                        });
-
+                        let bestMatch = data[0]; 
                         if(bestMatch.syncedLyrics) {
                             this.lyrics = bestMatch.syncedLyrics.split('\n').map(line => {
                                 const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                                if(match) {
-                                    return { 
-                                        time: parseInt(match[1]) * 60 + parseFloat(match[2]), 
-                                        text: match[3].trim() 
-                                    };
-                                }
+                                if(match) return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
                                 return null;
                             }).filter(l => l && l.text);
-                        } else if (bestMatch.plainLyrics) {
-                            this.lyrics = bestMatch.plainLyrics.split('\n').map(text => ({ text }));
                         }
-                    } catch(e) { console.error("Lyrics failed", e); }
+                    } catch(e) {}
+                },
+                syncLyrics() {
+                    if(!this.lyrics.length) return;
+                    // This finds the index to highlight, but we no longer call scrollIntoView()
+                    let index = this.lyrics.findIndex((line, i) => {
+                        const nextLine = this.lyrics[i + 1];
+                        return this.currentTime >= line.time && (!nextLine || this.currentTime < nextLine.time);
+                    });
+                    if (index !== -1) {
+                        this.currentLineIndex = index;
+                    }
                 },
                 play(s) {
                     this.active = s;
+                    this.currentLineIndex = -1;
                     if(ytPlayer?.loadVideoById) {
                         ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
                         this.playing = true;
-                        // Fetching lyrics but without initiating follow logic
                         setTimeout(() => this.fetchLyrics(s), 2000);
                     }
                 },
