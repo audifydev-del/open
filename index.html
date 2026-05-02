@@ -2,217 +2,296 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Audify - Lyrics Sync</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Audify</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
-        body {
-            font-family: 'Plus+Jakarta+Sans', sans-serif;
-            background-color: #000;
-            color: #fff;
-            overflow: hidden; /* Prevent body scroll */
-            height: 100vh;
+        [x-cloak] { display: none !important; }
+        :root { --app-height: 100dvh; }
+        body { background: #000; color: white; overflow: hidden; height: var(--app-height); font-family: 'Inter', sans-serif; }
+        .app-shell { width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto; position: relative; display: flex; flex-direction: column; }
+        
+        .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; padding-bottom: 10px; }
+        .shelf::-webkit-scrollbar { display: none; }
+        
+        .bottom-nav { 
+            background: linear-gradient(to top, #000 85%, transparent); 
+            position: absolute; bottom: 0; left: 0; right: 0; 
+            height: 85px; display: flex; justify-content: space-around; 
+            align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); 
+        }
+        
+        .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
+        .nav-item.active { opacity: 1; transform: scale(1.1); }
+
+        .player-view { 
+            position: absolute; inset: 0; z-index: 100; background: #000; 
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); 
+            overflow-y: auto; scrollbar-width: none;
+        }
+        .player-view::-webkit-scrollbar { display: none; }
+        
+        .immersive-bg { 
+            position: absolute; top: -10%; width: 120%; height: 90vh; 
+            object-fit: cover; opacity: 0.8; filter: blur(60px) saturate(180%);
+            mask-image: linear-gradient(to bottom, black 10%, transparent 90%);
+            -webkit-mask-image: linear-gradient(to bottom, black 10%, transparent 90%);
+            z-index: 0; transform: scale(1.2);
         }
 
-        /* Orientation Lock UI */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .orientation-guard {
-                display: flex !important;
-            }
+        .main-art { 
+            width: 85%; aspect-ratio: 1/1; margin: 0 auto; 
+            border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            object-fit: cover; z-index: 10; position: relative;
         }
 
-        .orientation-guard {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px;
+        /* Adjusted Lyrics Styling: Static & Readable */
+        .lyrics-window { 
+            margin-top: 40px; 
+            padding-bottom: 120px; 
+            transition: all 0.5s ease;
         }
-
-        /* Lyrics Container & Centering */
-        .lyrics-window {
-            height: 60vh;
-            overflow-y: scroll;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            scroll-behavior: smooth;
-            /* Vertical mask for fade effect */
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
-            mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
-        }
-
-        .lyrics-window::-webkit-scrollbar {
-            display: none;
-        }
-
-        .lyrics-line {
-            padding: 12px 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            line-height: 1.4;
-            color: rgba(255, 255, 255, 0.3);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        .lyrics-line { 
+            font-size: 1.6rem; 
+            font-weight: 800; 
+            line-height: 1.3; 
+            color: rgba(255,255,255,0.85); /* Increased visibility for static reading */
+            margin-bottom: 24px; 
             transform-origin: left;
         }
 
-        .lyrics-line.active {
-            color: #fff;
-            transform: scale(1.05);
-            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
-        }
-
-        /* Filler for top/bottom scrolling */
-        .scroll-spacer {
-            height: 25vh;
-        }
+        .btn-active:active { transform: scale(0.92); opacity: 0.7; }
+        #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
 </head>
-<body x-data="audifyApp()">
+<body x-data="audifyApp()" x-init="init()">
 
-    <!-- Orientation Guard -->
-    <div class="orientation-guard">
-        <div class="text-4xl mb-4">🔄</div>
-        <h2 class="text-xl font-bold">Please rotate your device</h2>
-        <p class="text-gray-400 mt-2">Audify is optimized for portrait mode.</p>
+    <!-- Splash Screen -->
+    <div class="fixed inset-0 bg-black z-[200] flex items-center justify-center" x-show="splash" x-transition:leave="duration-700">
+        <p class="font-bold tracking-[0.4em] uppercase text-[12px] animate-pulse">Audify</p>
     </div>
 
-    <!-- Main Player UI -->
-    <main class="max-w-md mx-auto h-screen flex flex-col p-6">
-        
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-8">
-            <button class="p-2 bg-white/10 rounded-full">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
-            <div class="text-center">
-                <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Playing From Project</p>
-                <p class="text-sm font-semibold">Audify Player</p>
+    <div class="app-shell" x-cloak>
+        <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
+                <div class="flex gap-5 text-lg"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
             </div>
-            <button class="p-2 bg-white/10 rounded-full">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </button>
-        </header>
 
-        <!-- Lyrics Section -->
-        <div class="lyrics-window" id="lyricsWindow">
-            <div class="scroll-spacer"></div>
-            <div class="space-y-4">
-                <template x-for="(line, index) in lyrics" :key="index">
-                    <div :id="'line-' + index"
-                         class="lyrics-line"
-                         :class="currentLineIndex === index ? 'active' : ''"
-                         x-text="line.text"
-                         @click="seekTo(line.time)">
-                    </div>
-                </template>
+            <!-- Home View -->
+            <div x-show="currentView === 'home'" x-transition>
+                <div class="grid grid-cols-2 gap-3 mb-10">
+                    <template x-for="s in trending.slice(0, 6)">
+                        <div @click="play(s)" class="bg-white/5 border border-white/5 rounded-md flex items-center gap-3 h-16 btn-active overflow-hidden">
+                            <img :src="s.thumbnail" class="h-full w-16 object-cover">
+                            <span class="text-[11px] font-bold truncate leading-tight pr-2" x-text="s.title"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <h2 class="text-xl font-bold mb-4">Jump back in</h2>
+                <div class="shelf">
+                    <template x-for="s in trending">
+                        <div @click="play(s)" class="w-36 flex-shrink-0 btn-active">
+                            <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
+                            <p class="text-xs font-bold truncate mb-0.5" x-text="s.title"></p>
+                            <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
+                        </div>
+                    </template>
+                </div>
             </div>
-            <div class="scroll-spacer"></div>
+
+            <!-- Search View -->
+            <div x-show="currentView === 'search'" x-transition>
+                <div class="relative mb-8">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-500"></i>
+                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search songs..." class="w-full p-4 pl-12 rounded-xl bg-zinc-900 text-white font-medium outline-none border border-white/5">
+                </div>
+                <div class="space-y-5">
+                    <template x-for="s in searchResults">
+                        <div @click="play(s)" class="flex items-center gap-4 btn-active">
+                            <img :src="s.thumbnail" class="w-14 h-14 rounded-md object-cover">
+                            <div class="overflow-hidden flex-grow">
+                                <p class="font-bold text-sm truncate" x-text="s.title"></p>
+                                <p class="text-xs text-zinc-400 truncate" x-text="s.artist"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mini Player -->
+        <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
+            <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
+            <div class="flex-grow overflow-hidden">
+                <p class="text-[12px] font-bold truncate" x-text="active?.title"></p>
+                <p class="text-[10px] text-zinc-400 truncate" x-text="active?.artist"></p>
+            </div>
+            <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
+            <div class="absolute bottom-0 left-0 h-[2px] bg-white/30 rounded-full" style="width: 100%;">
+                <div class="h-full bg-white transition-all" :style="`width: ${prog}%`"></div>
+            </div>
         </div>
 
-        <!-- Controls (Simplified for UI layout) -->
-        <footer class="mt-auto pb-10">
-            <div class="mb-6">
-                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
-                    <span x-text="formatTime(currentTime)">0:00</span>
-                    <span x-text="formatTime(duration)">0:00</span>
+        <nav class="bottom-nav">
+            <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
+            <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
+        </nav>
+
+        <!-- Full Player -->
+        <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
+            <img :src="active?.thumbnail" class="immersive-bg">
+            <div class="min-h-screen p-8 flex flex-col relative z-10">
+                <header class="flex justify-between items-center mb-10">
+                    <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
+                    <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
+                    <i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i>
+                </header>
+                
+                <img :src="active?.thumbnail" class="main-art mb-10">
+
+                <div class="mb-8">
+                    <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
+                    <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
-                <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-white" :style="'width: ' + (currentTime/duration * 100) + '%'"></div>
+                
+                <!-- Progress Slider -->
+                <div class="mb-10">
+                    <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
+                        <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] font-bold text-white/40">
+                        <span x-text="formatTime(currentTime)">0:00</span>
+                        <span x-text="formatTime(duration)">0:00</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-around items-center mb-12">
+                    <i class="fa-solid fa-backward-step text-3xl"></i>
+                    <button @click="toggle()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
+                        <i class="fa-solid text-3xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
+                    </button>
+                    <i class="fa-solid fa-forward-step text-3xl"></i>
+                </div>
+
+                <!-- Lyrics Window (No Automation) -->
+                <div class="lyrics-window">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-white/30 mb-6">Lyrics</h3>
+                    <div class="space-y-6" id="lyrics-container">
+                        <template x-if="!lyrics.length">
+                            <p class="text-white/20 italic">Searching for lyrics...</p>
+                        </template>
+                        <template x-for="(line, index) in lyrics">
+                            <div class="lyrics-line" x-text="line.text"></div>
+                        </template>
+                    </div>
                 </div>
             </div>
+        </div>
+        
+        <div id="yt-player-container"><div id="player"></div></div>
+    </div>
 
-            <div class="flex justify-around items-center">
-                <button @click="prevLine" class="opacity-70 hover:opacity-100">
-                    <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-                </button>
-                <button @click="togglePlay" class="w-20 h-20 bg-white rounded-full flex items-center justify-center text-black shadow-lg shadow-white/10">
-                    <svg x-show="!isPlaying" width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    <svg x-show="isPlaying" width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                </button>
-                <button @click="nextLine" class="opacity-70 hover:opacity-100">
-                    <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-                </button>
-            </div>
-        </footer>
-    </main>
-
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
+        let ytPlayer;
+
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('player', {
+                height: '1', width: '1', videoId: '',
+                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'playsinline': 1, 'origin': window.location.origin },
+                events: {
+                    'onStateChange': (e) => {
+                        if(window.audifyAppInstance) window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
+                    }
+                }
+            });
+        }
+
         function audifyApp() {
             return {
-                isPlaying: false,
-                currentTime: 0,
-                duration: 180, // 3 minutes mock
-                currentLineIndex: -1,
-                // Replace with your real lyrics data
-                lyrics: [
-                    { time: 0, text: "Welcome to Audify" },
-                    { time: 5, text: "The interface is now portrait-locked" },
-                    { time: 10, text: "Lyrics will stay centered" },
-                    { time: 15, text: "Tap a line to seek the audio" },
-                    { time: 20, text: "Built for mobile performance" },
-                    { time: 25, text: "Smooth transitions included" },
-                    { time: 30, text: "Starting second verse now..." },
-                    { time: 35, text: "Feel the rhythm of the design" }
-                ],
+                splash: true, currentView: 'home', query: '', open: false,
+                playing: false, prog: 0, currentTime: 0, duration: 0,
+                trending: [], searchResults: [], active: null,
+                lyrics: [], 
+                greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
+                formatTime(s) {
+                    if(!s) return "0:00";
+                    let m = Math.floor(s/60);
+                    let sec = Math.floor(s%60);
+                    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                },
+                async init() {
+                    window.audifyAppInstance = this;
+                    setTimeout(() => this.splash = false, 1500);
+                    try {
+                        const res = await fetch('/search?q=trending+hits');
+                        this.trending = await res.json();
+                    } catch(e) {}
 
-                init() {
-                    // Mock progress tracker for demo
                     setInterval(() => {
-                        if (this.isPlaying && this.currentTime < this.duration) {
-                            this.currentTime += 0.5;
-                            this.syncLyrics();
+                        if(this.playing && ytPlayer && ytPlayer.getCurrentTime) {
+                            this.currentTime = ytPlayer.getCurrentTime();
+                            this.duration = ytPlayer.getDuration();
+                            this.prog = (this.currentTime / this.duration) * 100;
+                            // Automation follow call removed here
                         }
-                    }, 500);
+                    }, 300);
                 },
-
-                togglePlay() {
-                    this.isPlaying = !this.isPlaying;
+                async searchMusic() {
+                    if(!this.query) return;
+                    const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
+                    this.searchResults = await res.json();
                 },
+                async fetchLyrics(track) {
+                    this.lyrics = [];
+                    try {
+                        const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
+                        const data = await res.json();
+                        if(!data.length) return;
 
-                syncLyrics() {
-                    const index = this.lyrics.findLastIndex(l => l.time <= this.currentTime);
-                    
-                    if (index !== this.currentLineIndex) {
-                        this.currentLineIndex = index;
-                        this.scrollToActiveLine();
+                        let targetDuration = this.duration;
+                        let bestMatch = data.reduce((prev, curr) => {
+                            return (Math.abs(curr.duration - targetDuration) < Math.abs(prev.duration - targetDuration) ? curr : prev);
+                        });
+
+                        if(bestMatch.syncedLyrics) {
+                            this.lyrics = bestMatch.syncedLyrics.split('\n').map(line => {
+                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                                if(match) {
+                                    return { 
+                                        time: parseInt(match[1]) * 60 + parseFloat(match[2]), 
+                                        text: match[3].trim() 
+                                    };
+                                }
+                                return null;
+                            }).filter(l => l && l.text);
+                        } else if (bestMatch.plainLyrics) {
+                            this.lyrics = bestMatch.plainLyrics.split('\n').map(text => ({ text }));
+                        }
+                    } catch(e) { console.error("Lyrics failed", e); }
+                },
+                play(s) {
+                    this.active = s;
+                    if(ytPlayer?.loadVideoById) {
+                        ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' });
+                        this.playing = true;
+                        // Fetching lyrics but without initiating follow logic
+                        setTimeout(() => this.fetchLyrics(s), 2000);
                     }
                 },
-
-                scrollToActiveLine() {
-                    this.$nextTick(() => {
-                        const container = document.getElementById('lyricsWindow');
-                        const activeLine = document.getElementById('line-' + this.currentLineIndex);
-                        
-                        if (container && activeLine) {
-                            // Calculate center point
-                            const containerCenter = container.clientHeight / 2;
-                            const lineCenter = activeLine.clientHeight / 2;
-                            const scrollTarget = activeLine.offsetTop - containerCenter + lineCenter;
-                            
-                            container.scrollTo({
-                                top: scrollTarget,
-                                behavior: 'smooth'
-                            });
-                        }
-                    });
+                toggle() {
+                    if(!ytPlayer) return;
+                    this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
                 },
-
-                seekTo(time) {
-                    this.currentTime = time;
-                    this.syncLyrics();
-                },
-
-                formatTime(seconds) {
-                    const min = Math.floor(seconds / 60);
-                    const sec = Math.floor(seconds % 60);
-                    return `${min}:${sec.toString().padStart(2, '0')}`;
+                seek(e) {
+                    if(!ytPlayer) return;
+                    let pct = e.offsetX / e.currentTarget.offsetWidth;
+                    ytPlayer.seekTo(pct * this.duration);
                 }
             }
         }
