@@ -30,9 +30,8 @@
         .player-view { 
             position: absolute; inset: 0; z-index: 100; background: #000; 
             transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); 
-            overflow-y: auto; scrollbar-width: none;
+            display: flex; flex-direction: column;
         }
-        .player-view::-webkit-scrollbar { display: none; }
         
         .immersive-bg { 
             position: absolute; top: -10%; width: 120%; height: 90vh; 
@@ -43,16 +42,22 @@
         }
 
         .main-art { 
-            width: 85%; aspect-ratio: 1/1; margin: 0 auto; 
+            width: 280px; aspect-ratio: 1/1; margin: 0 auto; 
             border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.8);
             object-fit: cover; z-index: 10; position: relative;
         }
 
-        /* Lyrics Styling: Highlighting remains, automatic scrolling is gone */
-        .lyrics-window { 
-            margin-top: 40px; 
-            padding-bottom: 120px; 
+        /* --- THE INVISIBLE SCROLL BOX --- */
+        .lyrics-scroll-box {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding: 0 32px 120px 32px;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
         }
+        .lyrics-scroll-box::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
         .lyrics-line { 
             font-size: 1.6rem; 
             font-weight: 800; 
@@ -63,7 +68,6 @@
             transform-origin: left;
             filter: blur(1px);
         }
-        /* The Highlight state */
         .lyrics-line.active { 
             color: #fff; 
             transform: scale(1.05); 
@@ -81,6 +85,7 @@
     </div>
 
     <div class="app-shell" x-cloak>
+        <!-- Main Content -->
         <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
             <div class="flex justify-between items-center mb-8">
                 <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
@@ -97,7 +102,7 @@
                     </template>
                 </div>
 
-                <h2 class="text-xl font-bold mb-4">Recently Played</h2>
+                <h2 class="text-xl font-bold mb-4">Jump back in</h2>
                 <div class="shelf">
                     <template x-for="s in trending">
                         <div @click="play(s)" class="w-36 flex-shrink-0 btn-active">
@@ -128,6 +133,7 @@
             </div>
         </main>
 
+        <!-- Mini Player -->
         <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 max-w-[425px] mx-auto bg-zinc-900/80 backdrop-blur-xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
@@ -145,23 +151,26 @@
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
         </nav>
 
+        <!-- Full Player -->
         <div x-show="open" class="player-view" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
-            <div class="min-h-screen p-8 flex flex-col relative z-10">
-                <header class="flex justify-between items-center mb-10">
+            
+            <!-- Static Top Part -->
+            <div class="p-8 pb-0 relative z-10">
+                <header class="flex justify-between items-center mb-6">
                     <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
                     <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
                     <i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i>
                 </header>
                 
-                <img :src="active?.thumbnail" class="main-art mb-10">
+                <img :src="active?.thumbnail" class="main-art mb-8">
 
-                <div class="mb-8">
+                <div class="mb-6">
                     <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
                     <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
                 
-                <div class="mb-10">
+                <div class="mb-6">
                     <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
                         <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
                     </div>
@@ -171,23 +180,24 @@
                     </div>
                 </div>
 
-                <div class="flex justify-around items-center mb-12">
+                <div class="flex justify-around items-center mb-4">
                     <i class="fa-solid fa-backward-step text-3xl"></i>
-                    <button @click="toggle()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
-                        <i class="fa-solid text-3xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
+                    <button @click="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center shadow-2xl">
+                        <i class="fa-solid text-2xl" :class="playing ? 'fa-pause' : 'fa-play'"></i>
                     </button>
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
+            </div>
 
-                <div class="lyrics-window">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-white/30 mb-6">Lyrics</h3>
-                    <div class="space-y-6" id="lyrics-container">
-                        <template x-for="(line, index) in lyrics">
-                            <div class="lyrics-line" 
-                                 :class="currentLineIndex === index ? 'active' : ''" 
-                                 x-text="line.text"></div>
-                        </template>
-                    </div>
+            <!-- Scrollable Lyrics Box (Invisible Box) -->
+            <div class="lyrics-scroll-box z-10">
+                <h3 class="text-xs font-black uppercase tracking-widest text-white/30 mb-6">Lyrics</h3>
+                <div class="space-y-6">
+                    <template x-for="(line, index) in lyrics">
+                        <div class="lyrics-line" 
+                             :class="currentLineIndex === index ? 'active' : ''" 
+                             x-text="line.text"></div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -264,7 +274,6 @@
                 },
                 syncLyrics() {
                     if(!this.lyrics.length) return;
-                    // This finds the index to highlight, but we no longer call scrollIntoView()
                     let index = this.lyrics.findIndex((line, i) => {
                         const nextLine = this.lyrics[i + 1];
                         return this.currentTime >= line.time && (!nextLine || this.currentTime < nextLine.time);
