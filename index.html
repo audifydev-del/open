@@ -50,14 +50,17 @@
 
         .lyrics-window { 
             margin-top: 10px; 
-            padding: 140px 20px 40px 20px; /* Reduced bottom padding */
-            height: 480px; 
+            /* Minimized bottom padding to remove the dead space */
+            padding: 120px 20px 20px 20px; 
+            height: auto;
+            max-height: 550px; 
             overflow-y: auto;
             scrollbar-width: none; 
             position: relative;
             z-index: 20;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 80%, transparent 100%);
+            /* Adjusted mask to show more lyrics at the bottom */
+            mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 95%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 95%, transparent 100%);
             scroll-behavior: smooth;
         }
         .lyrics-window::-webkit-scrollbar { display: none; }
@@ -65,19 +68,19 @@
         .lyrics-line { 
             font-size: 1.6rem; 
             font-weight: 800; 
-            line-height: 1.6; 
+            line-height: 1.4; 
             color: rgba(255,255,255,0.15); 
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
-            margin-bottom: 48px; 
+            margin-bottom: 40px; 
             transform-origin: left;
             filter: blur(0.5px);
         }
         
         .lyrics-line.active { 
             color: #fff; 
-            transform: scale(1.08); 
+            transform: scale(1.05); 
             filter: blur(0);
-            text-shadow: 0 0 12px rgba(255, 255, 255, 0.7), 0 0 24px rgba(255, 255, 255, 0.3);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.2);
         }
 
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
@@ -171,7 +174,7 @@
 
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg">
-            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-12"> <!-- Added padding bottom for safe area -->
+            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
                 <header class="flex justify-between items-center mb-10">
                     <i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i>
                     <p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p>
@@ -203,7 +206,7 @@
                     <i class="fa-solid fa-forward-step text-3xl"></i>
                 </div>
 
-                <div class="flex flex-col">
+                <div class="flex flex-col flex-grow">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
@@ -328,7 +331,8 @@
                                 const containerRect = windowEl.getBoundingClientRect();
                                 const activeRect = activeEl.getBoundingClientRect();
                                 const relativeTop = activeRect.top - containerRect.top;
-                                const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height * 0.25);
+                                // Shifted the focal point slightly higher to keep more upcoming lines visible
+                                const scrollTarget = windowEl.scrollTop + relativeTop - (containerRect.height * 0.2);
                                 windowEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
                             }
                         }
