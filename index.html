@@ -14,7 +14,6 @@
         body { background: #000; color: white; overflow: hidden; height: var(--app-height); font-family: 'Inter', sans-serif; }
         .app-shell { width: 100%; max-width: 450px; height: var(--app-height); margin: 0 auto; position: relative; display: flex; flex-direction: column; }
         
-        /* Shared Dynamic Background Style */
         .global-bg {
             position: fixed; inset: 0; width: 100%; height: 100%;
             object-fit: cover; filter: blur(80px) saturate(150%);
@@ -25,9 +24,11 @@
         .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; padding-bottom: 10px; }
         .shelf::-webkit-scrollbar { display: none; }
         
+        /* Fixed Bottom Nav - no more teleporting */
         .bottom-nav { 
             background: linear-gradient(to top, #000 85%, transparent); 
-            position: absolute; bottom: 0; left: 0; right: 0; 
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 450px;
             height: 85px; display: flex; justify-content: space-around; 
             align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); 
         }
@@ -141,7 +142,6 @@
 
     <div class="app-shell" x-cloak x-show="launched">
         
-        <!-- GLOBAL REACTIVE BACKGROUND (New) -->
         <img :src="active?.thumbnail" class="global-bg" x-show="active" :class="changing ? 'opacity-0' : 'opacity-35'">
 
         <!-- Main Library -->
@@ -191,7 +191,7 @@
 
             <!-- Search View -->
             <div x-show="currentView === 'search'" x-transition>
-                <div class="sticky top-0 bg-transparent pt-2 pb-6 z-20">
+                <div class="relative mb-6">
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-400"></i>
                         <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="What do you want to listen to?" class="w-full p-4 pl-12 rounded-lg bg-white/10 backdrop-blur-md text-white font-semibold outline-none border border-white/5 focus:border-white/20">
@@ -237,7 +237,7 @@
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
         </nav>
 
-        <!-- Full Player View (Untouched Logic) -->
+        <!-- Full Player View -->
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
             <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
@@ -280,10 +280,25 @@
                     <div class="flex justify-between items-center mb-4 relative z-[130]">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
                         <div class="flex gap-2">
+                            <!-- RESTORED SOURCES BUTTON -->
                             <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''"><i class="fa-solid fa-list-ul"></i> Sources</button>
                             <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>
                         </div>
                     </div>
+
+                    <!-- RESTORED SOURCES UI -->
+                    <div x-show="showSources" x-transition class="absolute inset-x-0 top-12 bg-zinc-900/95 backdrop-blur-3xl p-4 rounded-2xl border border-white/20 max-h-[300px] overflow-y-auto z-[150] shadow-2xl">
+                        <template x-for="source in availableSources" :key="source.id">
+                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
+                                <div class="overflow-hidden flex-grow mr-4">
+                                    <p class="text-xs font-bold truncate text-white" x-text="source.trackName"></p>
+                                    <p class="text-[10px] text-white/50 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
+                                </div>
+                                <div class="text-[10px] font-bold text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
+                            </div>
+                        </template>
+                    </div>
+
                     <div x-show="isFetchingLyrics" class="absolute inset-x-0 top-12 text-center z-[110]" x-transition>
                         <p class="text-[10px] font-black uppercase tracking-[0.3em] shimmer">Fetching Lyrics...</p>
                     </div>
@@ -332,7 +347,18 @@
                 showSources: false, availableSources: [], activeSourceId: null,
                 shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
 
-                launch() { this.launched = true; if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); },
+                launch() { 
+                    this.launched = true; 
+                    // Fixed Fullscreen logic
+                    const elem = document.documentElement;
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen().catch(err => console.log(err));
+                    } else if (elem.webkitRequestFullscreen) {
+                        elem.webkitRequestFullscreen();
+                    } else if (elem.msRequestFullscreen) {
+                        elem.msRequestFullscreen();
+                    }
+                },
                 greet() { return ['Good Morning','Good Afternoon','Good Evening'][Math.floor(new Date().getHours()/8)] || 'Audify' },
                 formatTime(s) { if(!s) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; },
                 async init() {
@@ -363,15 +389,20 @@
                 async fetchLyrics(track) {
                     if(!track) return;
                     this.isFetchingLyrics = true;
+                    this.availableSources = []; // RESTORED
                     try {
                         const cleanTitle = track.title.replace(/\(Official.*\)|\[Official.*\]/gi, '').trim();
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(track.artist)}`);
                         let data = await res.json();
                         this.isFetchingLyrics = false;
-                        if(data.length) this.applySource(data[0]);
+                        if(data.length) {
+                            this.availableSources = data; // RESTORED
+                            this.applySource(data[0]);
+                        }
                     } catch(e) { this.isFetchingLyrics = false; }
                 },
                 applySource(source) {
+                    this.activeSourceId = source.id; // RESTORED
                     if(source.syncedLyrics) {
                         this.lyrics = source.syncedLyrics.split('\n').map(line => {
                             const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -379,10 +410,12 @@
                             return null;
                         }).filter(l => l && l.text);
                     }
+                    this.showSources = false; // RESTORED
                     this.currentLineIndex = -1;
                 },
                 async play(s, list = null) {
                     this.changing = true;
+                    this.showSources = false; // RESTORED
                     setTimeout(async () => {
                         if (list) {
                             this.originalQueue = [...list];
@@ -391,6 +424,7 @@
                         this.active = s;
                         this.currentIndex = this.queue.findIndex(item => item.id === s.id);
                         this.lyrics = [];
+                        this.availableSources = []; // RESTORED
                         if(ytPlayer?.loadVideoById) { ytPlayer.loadVideoById({ videoId: s.id, suggestedQuality: 'small' }); this.playing = true; }
                         setTimeout(() => this.changing = false, 50);
                     }, 400);
