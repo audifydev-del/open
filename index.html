@@ -39,11 +39,14 @@
             position: relative; overflow: hidden; border-radius: 8px;
             aspect-ratio: 16/9; display: flex; padding: 12px;
             font-weight: 800; font-size: 14px; cursor: pointer;
+            transition: transform 0.2s;
         }
+        .category-card:active { transform: scale(0.95); }
         .category-card img {
             position: absolute; bottom: -5px; right: -15px;
-            width: 60px; height: 60px; transform: rotate(25deg);
+            width: 65px; height: 65px; transform: rotate(25deg);
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            object-fit: cover;
         }
 
         .player-view { 
@@ -177,20 +180,6 @@
                         </template>
                     </div>
                 </div>
-
-                <!-- Section 3: Popular Playlists -->
-                <div class="mb-10">
-                    <h2 class="text-xl font-bold mb-4">Popular Playlists</h2>
-                    <div class="shelf">
-                        <template x-for="s in trending.slice(2, 7)">
-                            <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
-                                <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
-                                <p class="text-xs font-bold truncate" x-text="s.title"></p>
-                                <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
             </div>
 
             <!-- Search View -->
@@ -202,20 +191,22 @@
                     </div>
                 </div>
 
-                <!-- Browser Categories (Spotify Style) -->
+                <!-- Browser Categories -->
                 <div x-show="!searchResults.length && !query" x-transition>
                     <h2 class="text-lg font-bold mb-4">Browse All</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="category-card bg-[#E8115B]"><span>Pop</span><img src="https://i.scdn.co/image/ab67706f0000000216ff709088a8d11623910c2f"></div>
-                        <div class="category-card bg-[#1E3264]"><span>Hip-Hop</span><img src="https://i.scdn.co/image/ab67706f000000029bb6af539d072de34548d15c"></div>
-                        <div class="category-card bg-[#148A08]"><span>Rock</span><img src="https://i.scdn.co/image/ab67706f00000002fe6a49298451848f0761e389"></div>
-                        <div class="category-card bg-[#BC5900]"><span>Dance</span><img src="https://i.scdn.co/image/ab67706f00000002030f81d1b953d6f7a6064951"></div>
-                        <div class="category-card bg-[#8D67AB]"><span>Chill</span><img src="https://i.scdn.co/image/ab67706f00000002ef0a9f5ef749171b3e8e778a"></div>
-                        <div class="category-card bg-[#7358FF]"><span>Party</span><img src="https://i.scdn.co/image/ab67706f00000002b851b3699709772c918e95c1"></div>
+                        <div @click="categorySearch('Pop')" class="category-card bg-[#E8115B]"><span>Pop</span><img src="https://i.scdn.co/image/ab67706f0000000216ff709088a8d11623910c2f"></div>
+                        <div @click="categorySearch('Hip Hop')" class="category-card bg-[#1E3264]"><span>Hip-Hop</span><img src="https://i.scdn.co/image/ab67706f000000029bb6af539d072de34548d15c"></div>
+                        <div @click="categorySearch('Rock')" class="category-card bg-[#148A08]"><span>Rock</span><img src="https://i.scdn.co/image/ab67706f00000002fe6a49298451848f0761e389"></div>
+                        <div @click="categorySearch('Dance')" class="category-card bg-[#BC5900]"><span>Dance</span><img src="https://i.scdn.co/image/ab67706f00000002030f81d1b953d6f7a6064951"></div>
+                        <div @click="categorySearch('Chill')" class="category-card bg-[#8D67AB]"><span>Chill</span><img src="https://i.scdn.co/image/ab67706f00000002ef0a9f5ef749171b3e8e778a"></div>
+                        <div @click="categorySearch('Party')" class="category-card bg-[#7358FF]"><span>Party</span><img src="https://i.scdn.co/image/ab67706f00000002b851b3699709772c918e95c1"></div>
+                        <div @click="categorySearch('Acoustic')" class="category-card bg-[#BA5D07]"><span>Acoustic</span><img src="https://i.scdn.co/image/ab67706f000000020c025816c148e65842c5ee1a"></div>
+                        <div @click="categorySearch('Anime')" class="category-card bg-[#AF2896]"><span>Anime</span><img src="https://i.scdn.co/image/ab67706f00000002c414990264024840f353930b"></div>
                     </div>
                 </div>
 
-                <!-- Search Results with Animation -->
+                <!-- Search Results -->
                 <div class="space-y-5" x-show="searchResults.length">
                     <template x-for="(s, index) in searchResults" :key="s.id">
                         <div @click="play(s, searchResults)" class="result-item flex items-center gap-4 btn-active" :style="`animation-delay: ${index * 0.05}s`">
@@ -311,7 +302,7 @@
                             <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
                                 <div class="overflow-hidden flex-grow mr-4">
                                     <p class="text-xs font-bold truncate text-white" x-text="source.trackName"></p>
-                                    <p class="text-[10px] text-white/50 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
+                                    <p class="text-[10px] text-white/50 border-white/10 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
                                 </div>
                                 <div class="text-[10px] font-bold text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
                             </div>
@@ -373,9 +364,7 @@
                     try {
                         const res = await fetch('/search?q=trending+hits');
                         const data = await res.json();
-                        
                         const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'shruti rane', 'sachet tandon', 'arijit singh'];
-                        
                         this.trending = data.filter(s => {
                             const content = (s.title + ' ' + s.artist).toLowerCase();
                             return !banned.some(term => content.includes(term));
@@ -389,6 +378,10 @@
                             this.syncLyrics();
                         }
                     }, 100);
+                },
+                categorySearch(genre) {
+                    this.query = genre;
+                    this.searchMusic();
                 },
                 async searchMusic() {
                     if(!this.query) { this.searchResults = []; return; }
