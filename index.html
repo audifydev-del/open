@@ -27,14 +27,12 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
         .nav-item.active { opacity: 1; transform: scale(1.1); }
 
-        /* Search Animations */
         @keyframes resultPop {
             0% { opacity: 0; transform: translateY(20px) scale(0.95); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
         .result-item { animation: resultPop 0.4s cubic-bezier(0.23, 1, 0.32, 1) both; }
 
-        /* Category Card Styles */
         .category-card {
             position: relative; overflow: hidden; border-radius: 8px;
             aspect-ratio: 16/9; display: flex; padding: 12px;
@@ -153,7 +151,7 @@
                     </template>
                 </div>
 
-                <!-- Section 1: Recently Played -->
+                <!-- Recently Played -->
                 <div class="mb-10">
                     <h2 class="text-xl font-bold mb-4">Recently Played</h2>
                     <div class="shelf">
@@ -167,7 +165,7 @@
                     </div>
                 </div>
 
-                <!-- Section 2: Made For You -->
+                <!-- Made For You -->
                 <div class="mb-10">
                     <h2 class="text-xl font-bold mb-4">Made For You</h2>
                     <div class="shelf">
@@ -176,6 +174,37 @@
                                 <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
                                 <p class="text-xs font-bold truncate" x-text="s.title"></p>
                                 <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Popular Playlists (Restored) -->
+                <div class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Popular Playlists</h2>
+                    <div class="shelf">
+                        <template x-for="s in trending.slice(0, 8)">
+                            <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
+                                <div class="relative">
+                                    <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover brightness-75">
+                                    <i class="fa-solid fa-circle-play absolute bottom-5 right-2 text-white text-2xl opacity-80"></i>
+                                </div>
+                                <p class="text-xs font-bold truncate" x-text="s.title"></p>
+                                <p class="text-[10px] text-zinc-500 truncate">Curated for you</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Fresh Finds (New Section) -->
+                <div class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Fresh Finds</h2>
+                    <div class="shelf">
+                        <template x-for="s in trending.slice().sort(() => Math.random() - 0.5)">
+                            <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
+                                <img :src="s.thumbnail" class="w-36 h-36 rounded-full shadow-2xl mb-3 object-cover border-2 border-white/10">
+                                <p class="text-xs font-bold truncate text-center" x-text="s.artist"></p>
+                                <p class="text-[9px] text-zinc-500 truncate text-center uppercase tracking-tighter">New Artist</p>
                             </div>
                         </template>
                     </div>
@@ -191,7 +220,6 @@
                     </div>
                 </div>
 
-                <!-- Browser Categories -->
                 <div x-show="!searchResults.length && !query" x-transition>
                     <h2 class="text-lg font-bold mb-4">Browse All</h2>
                     <div class="grid grid-cols-2 gap-4">
@@ -206,7 +234,6 @@
                     </div>
                 </div>
 
-                <!-- Search Results -->
                 <div class="space-y-5" x-show="searchResults.length">
                     <template x-for="(s, index) in searchResults" :key="s.id">
                         <div @click="play(s, searchResults)" class="result-item flex items-center gap-4 btn-active" :style="`animation-delay: ${index * 0.05}s`">
@@ -231,7 +258,6 @@
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
-        <!-- Navigation -->
         <nav class="bottom-nav">
             <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
@@ -269,7 +295,6 @@
                     </div>
                 </div>
 
-                <!-- Player Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -283,7 +308,6 @@
                     </button>
                 </div>
 
-                <!-- Lyrics Area -->
                 <div class="flex flex-col flex-grow relative">
                     <div class="flex justify-between items-center mb-4 relative z-[130]">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
@@ -302,7 +326,7 @@
                             <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
                                 <div class="overflow-hidden flex-grow mr-4">
                                     <p class="text-xs font-bold truncate text-white" x-text="source.trackName"></p>
-                                    <p class="text-[10px] text-white/50 border-white/10 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
+                                    <p class="text-[10px] text-white/50 truncate" x-text="source.artistName + ' • ' + source.albumName"></p>
                                 </div>
                                 <div class="text-[10px] font-bold text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
                             </div>
@@ -386,7 +410,15 @@
                 async searchMusic() {
                     if(!this.query) { this.searchResults = []; return; }
                     const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
-                    this.searchResults = await res.json();
+                    let data = await res.json();
+                    
+                    // De-duplication logic using a Set of IDs
+                    const uniqueIds = new Set();
+                    this.searchResults = data.filter(song => {
+                        if (uniqueIds.has(song.id)) return false;
+                        uniqueIds.add(song.id);
+                        return true;
+                    });
                 },
                 async fetchLyrics(track) {
                     if(!track) return;
