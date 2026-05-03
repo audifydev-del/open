@@ -88,7 +88,6 @@
         .fade-out { opacity: 0; transform: scale(0.95); }
         .fade-in { opacity: 1; transform: scale(1); }
         
-        /* Shimmer for fetching text */
         .shimmer {
             background: linear-gradient(90deg, #555 25%, #fff 50%, #555 75%);
             background-size: 200% 100%;
@@ -120,7 +119,9 @@
                 <div class="flex gap-5 text-lg"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
             </div>
 
+            <!-- Home View -->
             <div x-show="currentView === 'home'" x-transition>
+                <!-- Quick Picks Grid -->
                 <div class="grid grid-cols-2 gap-3 mb-10">
                     <template x-for="s in trending.slice(0, 6)">
                         <div @click="play(s, trending)" class="bg-white/5 border border-white/5 rounded-md flex items-center gap-3 h-16 btn-active overflow-hidden">
@@ -129,18 +130,53 @@
                         </div>
                     </template>
                 </div>
-                <h2 class="text-xl font-bold mb-4">Recently Played</h2>
-                <div class="shelf">
-                    <template x-for="s in trending">
-                        <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
-                            <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
-                            <p class="text-xs font-bold truncate" x-text="s.title"></p>
-                            <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
-                        </div>
-                    </template>
+
+                <!-- Section 1: Recently Played -->
+                <div class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Recently Played</h2>
+                    <div class="shelf">
+                        <template x-for="s in trending">
+                            <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
+                                <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
+                                <p class="text-xs font-bold truncate" x-text="s.title"></p>
+                                <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Section 2: Made For You -->
+                <div class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Made For You</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <template x-for="s in trending.slice().reverse().slice(0, 4)">
+                            <div @click="play(s, trending)" class="btn-active">
+                                <img :src="s.thumbnail" class="w-full aspect-square rounded-xl mb-2 object-cover">
+                                <p class="text-[12px] font-bold truncate" x-text="s.title"></p>
+                                <p class="text-[10px] text-zinc-500 truncate" x-text="s.artist"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Section 3: Popular Playlists -->
+                <div class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Popular Playlists</h2>
+                    <div class="shelf">
+                        <template x-for="s in trending.slice(2, 7)">
+                            <div @click="play(s, trending)" class="w-44 flex-shrink-0 btn-active relative">
+                                <img :src="s.thumbnail" class="w-44 h-44 rounded-2xl mb-3 object-cover brightness-75">
+                                <div class="absolute bottom-6 left-3 right-3">
+                                    <p class="text-sm font-black truncate text-white uppercase italic" x-text="s.artist"></p>
+                                    <p class="text-[9px] font-bold text-white/70 uppercase tracking-tighter">Essential Mix</p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
 
+            <!-- Search View -->
             <div x-show="currentView === 'search'" x-transition>
                 <div class="relative mb-8">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-500"></i>
@@ -170,6 +206,7 @@
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
+        <!-- Navigation -->
         <nav class="bottom-nav">
             <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
@@ -177,7 +214,6 @@
 
         <!-- Full Player View -->
         <div x-show="open" class="player-view" id="full-player" x-transition:enter="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="translate-y-full">
-            
             <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
 
             <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
@@ -208,7 +244,7 @@
                     </div>
                 </div>
 
-                <!-- Controls -->
+                <!-- Player Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -222,6 +258,7 @@
                     </button>
                 </div>
 
+                <!-- Lyrics Area -->
                 <div class="flex flex-col flex-grow relative">
                     <div class="flex justify-between items-center mb-4 relative z-[130]">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
@@ -231,12 +268,10 @@
                         </div>
                     </div>
 
-                    <!-- Fetching Indicator -->
                     <div x-show="isFetchingLyrics" class="absolute inset-x-0 top-12 text-center z-[110]" x-transition>
                         <p class="text-[10px] font-black uppercase tracking-[0.3em] shimmer">Fetching Lyrics...</p>
                     </div>
 
-                    <!-- Sources Dropdown (Fixed visibility) -->
                     <div x-show="showSources" x-transition class="absolute inset-x-0 top-12 bg-zinc-900/95 backdrop-blur-3xl p-4 rounded-2xl border border-white/20 max-h-[300px] overflow-y-auto z-[150] shadow-2xl">
                         <template x-for="source in availableSources" :key="source.id">
                             <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
@@ -247,7 +282,6 @@
                                 <div class="text-[10px] font-bold text-white/40 px-2 py-1 bg-white/5 rounded" x-text="formatTime(source.duration)"></div>
                             </div>
                         </template>
-                        <div x-show="availableSources.length === 0" class="text-center py-8 text-zinc-500 text-xs">No sources found</div>
                     </div>
 
                     <div class="lyrics-window" id="lyrics-window" @scroll="handleUserScroll">
@@ -332,7 +366,6 @@
                         this.isFetchingLyrics = false;
                         if(!data.length) return;
                         this.availableSources = data;
-                        
                         const vDur = ytPlayer?.getDuration() || 0;
                         let best = data.reduce((prev, curr) => Math.abs(curr.duration - vDur) < Math.abs(prev.duration - vDur) ? curr : prev);
                         this.applySource(best);
