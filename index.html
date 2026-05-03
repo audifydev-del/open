@@ -145,7 +145,7 @@
                     </div>
                 </div>
 
-                <!-- Section 2: Made For You (Now identical to Recently Played layout) -->
+                <!-- Section 2: Made For You -->
                 <div class="mb-10">
                     <h2 class="text-xl font-bold mb-4">Made For You</h2>
                     <div class="shelf">
@@ -337,7 +337,14 @@
                     try {
                         const res = await fetch('/search?q=trending+hits');
                         const data = await res.json();
-                        this.trending = data.filter(s => !['t-series', 'tseries'].some(term => (s.title + s.artist).toLowerCase().includes(term)));
+                        
+                        // Banned keywords and artists
+                        const banned = ['t-series', 'tseries', 'bollywood', 'indian', 'hindi', 'shruti rane', 'sachet tandon'];
+                        
+                        this.trending = data.filter(s => {
+                            const content = (s.title + ' ' + s.artist).toLowerCase();
+                            return !banned.some(term => content.includes(term));
+                        });
                     } catch(e) {}
                     setInterval(() => {
                         if(this.playing && ytPlayer?.getCurrentTime) {
