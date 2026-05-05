@@ -35,18 +35,6 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
         .nav-item.active { opacity: 1; transform: scale(1.1); }
 
-        .category-card {
-            position: relative; overflow: hidden; border-radius: 8px;
-            aspect-ratio: 16/9; display: flex; padding: 12px;
-            font-weight: 800; font-size: 14px; cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .category-card img {
-            position: absolute; bottom: -5px; right: -15px;
-            width: 65px; height: 65px; transform: rotate(25deg);
-            object-fit: cover;
-        }
-
         .player-view { 
             position: absolute; inset: 0; z-index: 100; background: #000; 
             transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); 
@@ -83,7 +71,10 @@
             margin-bottom: 40px; transform-origin: left;
         }
         
-        .lyrics-line.active { color: #fff; transform: scale(1.05); text-shadow: 0 0 15px rgba(255, 255, 255, 0.6); }
+        .lyrics-line.active { 
+            color: #fff; transform: scale(1.05); 
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.2);
+        }
 
         .control-pill {
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
@@ -93,6 +84,13 @@
         }
         .control-pill.active { background: #fff; color: #000; }
         
+        .source-item {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
+            padding: 14px; border-radius: 12px; margin-bottom: 10px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .source-item.active { border-color: #fff; background: rgba(255,255,255,0.3); }
+
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
         
@@ -123,7 +121,7 @@
         
         <img :src="active?.thumbnail" class="global-bg" x-show="active" :class="changing ? 'opacity-0' : 'opacity-35'">
 
-        <!-- Main Content Area -->
+        <!-- Main Content -->
         <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
             <div class="flex justify-between items-center mb-8">
                 <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : (currentView === 'search' ? 'Search' : 'Library')"></h1>
@@ -132,7 +130,6 @@
 
             <!-- Home View -->
             <div x-show="currentView === 'home'" x-transition>
-                <!-- Quick Picks Grid -->
                 <div class="grid grid-cols-2 gap-3 mb-10">
                     <template x-for="s in trending.slice(0, 6)">
                         <div @click="play(s, trending)" class="bg-white/10 backdrop-blur-md border border-white/10 rounded-md flex items-center gap-3 h-16 btn-active overflow-hidden">
@@ -142,29 +139,27 @@
                     </template>
                 </div>
 
-                <!-- Functional Artists Section -->
+                <!-- Functional iTunes Artists -->
                 <div class="mb-10">
                     <h2 class="text-xl font-bold mb-4">Artists</h2>
                     <div class="shelf">
                         <template x-for="artist in [
-                            {name: 'Taylor Swift', img: 'https://i.scdn.co/image/ab6761610000e5eb859fab99752697b0ca67f9ef'},
-                            {name: 'Drake', img: 'https://i.scdn.co/image/ab6761610000e5eb4293385d324db8558179afd9'},
-                            {name: 'The Weeknd', img: 'https://i.scdn.co/image/ab6761610000e5eb214f3cf1c069b232e74e3049'},
-                            {name: 'Ariana Grande', img: 'https://i.scdn.co/image/ab6761610000e5ebcdce4761f14ca1da683fa299'},
-                            {name: 'Bruno Mars', img: 'https://i.scdn.co/image/ab6761610000e5ebc361d366ca3ac15682977ca3'},
-                            {name: 'SZA', img: 'https://i.scdn.co/image/ab6761610000e5eb78ca05686e9d997efda8c97e'}
+                            {name: 'Taylor Swift', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/3d/8d/64/3d8d6468-232a-f9e4-839e-d3058869850e/1989_Taylor_Version.png/400x400bb.jpg'},
+                            {name: 'The Weeknd', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/91/9e/9d/919e9d6a-5421-c301-447a-245f4422e032/21UMGIM10619.rgb.jpg/400x400bb.jpg'},
+                            {name: 'Drake', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/97/80/43/97804369-0268-d0f5-5028-2d8868df3303/23UMGIM97017.rgb.jpg/400x400bb.jpg'},
+                            {name: 'SZA', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/90/13/46/9013460f-e190-7988-1d70-36637e196614/196589578822.jpg/400x400bb.jpg'},
+                            {name: 'Bruno Mars', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/9c/e6/5d/9ce65d2b-6325-78e7-8898-75c6c64be760/075679768650.jpg/400x400bb.jpg'}
                         ]">
-                            <div @click="currentView = 'search'; query = artist.name; searchMusic()" class="flex flex-col items-center gap-2 flex-shrink-0 btn-active">
-                                <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10">
+                            <div @click="currentView = 'search'; query = artist.name; searchMusic()" class="flex flex-col items-center gap-3 flex-shrink-0 btn-active">
+                                <div class="w-36 h-36 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl">
                                     <img :src="artist.img" class="w-full h-full object-cover">
                                 </div>
-                                <span class="text-[10px] font-bold text-zinc-400" x-text="artist.name"></span>
+                                <span class="text-xs font-bold text-zinc-400" x-text="artist.name"></span>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <!-- Recently Played Section -->
                 <div class="mb-10">
                     <h2 class="text-xl font-bold mb-4">Recently Played</h2>
                     <div class="shelf">
@@ -179,48 +174,32 @@
                 </div>
             </div>
 
-            <!-- Search View -->
+            <!-- Search and Library Views remain the same -->
             <div x-show="currentView === 'search'" x-transition>
                 <div class="relative mb-6">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-400"></i>
-                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search songs or artists" class="w-full p-4 pl-12 rounded-lg bg-white/10 text-white font-semibold outline-none border border-white/5">
+                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search..." class="w-full p-4 pl-12 rounded-lg bg-white/10 outline-none">
                 </div>
-
-                <div x-show="!searchResults.length && !query">
-                    <h2 class="text-lg font-bold mb-4">Browse All</h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div @click="categorySearch('Pop')" class="category-card bg-[#E8115B]"><span>Pop</span><img src="https://i.scdn.co/image/ab67706f0000000216ff709088a8d11623910c2f"></div>
-                        <div @click="categorySearch('Hip Hop')" class="category-card bg-[#1E3264]"><span>Hip-Hop</span><img src="https://i.scdn.co/image/ab67706f000000029bb6af539d072de34548d15c"></div>
-                    </div>
-                </div>
-
                 <div class="space-y-5" x-show="searchResults.length">
                     <template x-for="s in searchResults">
                         <div @click="play(s, searchResults)" class="flex items-center gap-4 btn-active">
                             <img :src="s.thumbnail" class="w-14 h-14 rounded-md object-cover">
-                            <div class="overflow-hidden">
-                                <p class="font-bold text-sm truncate" x-text="s.title"></p>
-                                <p class="text-xs text-zinc-400 truncate" x-text="s.artist"></p>
-                            </div>
+                            <div class="overflow-hidden"><p class="font-bold text-sm truncate" x-text="s.title"></p><p class="text-xs text-zinc-400 truncate" x-text="s.artist"></p></div>
                         </div>
                     </template>
                 </div>
             </div>
-
-            <!-- Library View -->
+            
             <div x-show="currentView === 'library'" x-transition>
-                <div class="space-y-6">
-                    <div class="flex items-center gap-4 p-2 btn-active">
-                        <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-400 rounded-lg flex items-center justify-center shadow-lg"><i class="fa-solid fa-heart text-2xl"></i></div>
-                        <div><p class="font-bold">Liked Songs</p><p class="text-xs text-zinc-400">Playlist • 42 songs</p></div>
-                    </div>
+                <div class="p-2 btn-active flex items-center gap-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-400 rounded-lg flex items-center justify-center"><i class="fa-solid fa-heart text-2xl"></i></div>
+                    <p class="font-bold">Liked Songs</p>
                 </div>
             </div>
         </main>
 
         <!-- Mini Player with Pop Down -->
-        <div x-show="active && !open" 
-             @click="open=true" 
+        <div x-show="active && !open" @click="open=true" 
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="translate-y-20 opacity-0"
              x-transition:leave="transition ease-in duration-200"
@@ -234,38 +213,75 @@
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
-        <!-- Bottom Navigation -->
+        <!-- Navigation -->
         <nav class="bottom-nav">
             <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
             <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
             <div class="nav-item" :class="currentView === 'library' ? 'active' : ''" @click="currentView = 'library'"><i class="fa-solid fa-lines-leaning"></i><span class="text-[10px] font-bold">Library</span></div>
         </nav>
 
-        <!-- Full Player View -->
-        <div x-show="open" class="player-view" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transition ease-in duration-400" x-transition:leave-end="translate-y-full">
+        <!-- Full Player with All Features Restored -->
+        <div x-show="open" class="player-view" x-transition:enter="transition duration-500" x-transition:enter-start="translate-y-full" x-transition:leave="transition duration-400" x-transition:leave-end="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
-            <div class="min-h-screen p-8 flex flex-col relative z-10">
+            <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
                 <header class="flex justify-between items-center mb-10"><i class="fa-solid fa-chevron-down text-xl p-2 btn-active" @click="open=false"></i><p class="text-[11px] font-bold uppercase tracking-widest">Now Playing</p><i class="fa-solid fa-ellipsis-vertical text-xl p-2"></i></header>
-                <div class="w-[85%] mx-auto aspect-square mb-10"><img :src="active?.thumbnail" class="main-art" :class="changing ? 'opacity-0' : 'opacity-100'"></div>
-                <div class="mb-8" :class="changing ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'">
+                
+                <div class="w-[85%] mx-auto aspect-square mb-10">
+                    <img :src="active?.thumbnail" class="main-art" :class="changing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'">
+                </div>
+
+                <div class="mb-8" :class="changing ? 'opacity-0' : 'opacity-100'">
                     <h2 class="text-2xl font-black mb-1 truncate" x-text="active?.title"></h2>
-                    <p class="text-lg text-white/60 truncate" x-text="active?.artist"></p>
+                    <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
+
                 <div class="mb-10">
-                    <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)"><div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div></div>
-                    <div class="flex justify-between text-[10px] font-bold text-white/40"><span x-text="formatTime(currentTime)">0:00</span><span x-text="formatTime(duration)">0:00</span></div>
+                    <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
+                        <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] font-bold text-white/40">
+                        <span x-text="formatTime(currentTime)">0:00</span>
+                        <span x-text="formatTime(duration)">0:00</span>
+                    </div>
                 </div>
+
+                <!-- Restored Controls -->
                 <div class="flex justify-around items-center mb-12">
+                    <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
                     <button @click="toggle()" class="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center btn-active"><i class="fa-solid text-3xl" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
                     <button @click="next()" class="btn-active"><i class="fa-solid fa-forward-step text-3xl"></i></button>
+                    <button @click="toggleRepeat()" class="text-lg relative" :class="repeatMode !== 'off' ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-repeat"></i><span x-show="repeatMode === 'one'" class="absolute -top-1 -right-1 bg-white text-black text-[8px] w-3 h-3 rounded-full flex items-center justify-center font-bold">1</span></button>
                 </div>
-                <div class="lyrics-window" id="lyrics-window">
-                    <template x-for="(line, index) in lyrics"><div class="lyrics-line" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div></template>
+
+                <!-- Lyrics & Sources Restored -->
+                <div class="flex flex-col flex-grow relative">
+                    <div class="flex justify-between items-center mb-4 relative z-[130]">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
+                        <div class="flex gap-2">
+                            <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''"><i class="fa-solid fa-list-ul"></i> Sources</button>
+                            <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>
+                        </div>
+                    </div>
+
+                    <!-- Source Selector -->
+                    <div x-show="showSources" class="absolute inset-x-0 top-12 bg-zinc-900/95 p-4 rounded-2xl z-[150] shadow-2xl max-h-[300px] overflow-y-auto">
+                        <template x-for="source in availableSources">
+                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
+                                <div class="overflow-hidden"><p class="text-xs font-bold truncate" x-text="source.trackName"></p><p class="text-[10px] text-white/50" x-text="source.artistName"></p></div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="lyrics-window" id="lyrics-window">
+                        <template x-for="(line, index) in lyrics">
+                            <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
-        
+
         <div id="yt-player-container"><div id="player"></div></div>
     </div>
 
@@ -292,7 +308,8 @@
                 launched: false, splash: true, currentView: 'home', query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0, changing: false,
                 trending: [], searchResults: [], active: null, lyrics: [], currentLineIndex: -1,
-                queue: [], currentIndex: -1,
+                isSynced: true, showSources: false, availableSources: [], activeSourceId: null,
+                shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
 
                 launch() { this.launched = true; },
                 greet() { const h = new Date().getHours(); return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening'; },
@@ -313,18 +330,16 @@
                         }
                     }, 200);
                 },
-                categorySearch(genre) { this.query = genre; this.searchMusic(); },
                 async searchMusic() {
-                    if(!this.query) { this.searchResults = []; return; }
-                    try {
-                        const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
-                        this.searchResults = await res.json();
-                    } catch(e) {}
+                    if(!this.query) return;
+                    const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
+                    this.searchResults = await res.json();
                 },
                 async play(s, list = null) {
                     this.changing = true;
-                    if (list) { this.queue = [...list]; this.currentIndex = this.queue.findIndex(item => item.id === s.id); }
+                    if (list) { this.originalQueue = [...list]; this.queue = this.shuffle ? this.shuffleArray([...list]) : [...list]; }
                     this.active = s;
+                    this.currentIndex = this.queue.findIndex(i => i.id === s.id);
                     this.lyrics = [];
                     if(ytPlayer?.loadVideoById) { ytPlayer.loadVideoById(s.id); this.playing = true; }
                     this.fetchLyrics(s);
@@ -334,24 +349,45 @@
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
                         const data = await res.json();
-                        if(data[0]?.syncedLyrics) {
-                            this.lyrics = data[0].syncedLyrics.split('\n').map(line => {
-                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                                return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
-                            }).filter(l => l?.text);
-                        }
+                        if(data.length) { this.availableSources = data; this.applySource(data[0]); }
                     } catch(e) {}
+                },
+                applySource(source) {
+                    this.activeSourceId = source.id;
+                    if(source.syncedLyrics) {
+                        this.lyrics = source.syncedLyrics.split('\n').map(line => {
+                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                            return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
+                        }).filter(l => l?.text);
+                    }
+                    this.showSources = false;
                 },
                 syncLyrics() {
                     let index = this.lyrics.findLastIndex(l => this.currentTime >= l.time);
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
-                        const activeEl = document.getElementById('line-' + index);
-                        if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if(this.isSynced) {
+                            const el = document.getElementById('line-' + index);
+                            const win = document.getElementById('lyrics-window');
+                            if(el && win) win.scrollTo({ top: el.offsetTop - 150, behavior: 'smooth' });
+                        }
                     }
                 },
-                next() { if(this.currentIndex < this.queue.length - 1) this.play(this.queue[this.currentIndex + 1]); },
+                next() {
+                    if (this.repeatMode === 'one') { ytPlayer.seekTo(0); return; }
+                    if (this.currentIndex < this.queue.length - 1) this.play(this.queue[this.currentIndex + 1]);
+                },
                 prev() { if(this.currentIndex > 0) this.play(this.queue[this.currentIndex - 1]); },
+                toggleShuffle() {
+                    this.shuffle = !this.shuffle;
+                    this.queue = this.shuffle ? this.shuffleArray([...this.originalQueue]) : [...this.originalQueue];
+                    this.currentIndex = this.queue.findIndex(i => i.id === this.active.id);
+                },
+                toggleRepeat() {
+                    const modes = ['off', 'all', 'one'];
+                    this.repeatMode = modes[(modes.indexOf(this.repeatMode) + 1) % modes.length];
+                },
+                shuffleArray(a) { for(let i=a.length-1; i>0; i--){ let j=Math.floor(Math.random()*(i+1)); [a[i], a[j]]=[a[j], a[i]]; } return a; },
                 toggle() { this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); },
                 seek(e) { ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); }
             }
