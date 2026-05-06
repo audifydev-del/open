@@ -21,20 +21,6 @@
             pointer-events: none;
         }
 
-        .shelf { display: flex; overflow-x: auto; gap: 16px; scrollbar-width: none; padding-bottom: 10px; }
-        .shelf::-webkit-scrollbar { display: none; }
-        
-        .bottom-nav { 
-            background: linear-gradient(to top, #000 85%, transparent); 
-            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: 100%; max-width: 450px;
-            height: 85px; display: flex; justify-content: space-around; 
-            align-items: center; z-index: 50; padding-bottom: env(safe-area-inset-bottom); 
-        }
-        
-        .nav-item { display: flex; flex-direction: column; align-items: center; opacity: 0.6; transition: 0.2s; cursor: pointer; }
-        .nav-item.active { opacity: 1; transform: scale(1.1); }
-
         .player-view { 
             position: absolute; inset: 0; z-index: 100; background: #000; 
             transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); 
@@ -97,6 +83,7 @@
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
+    <!-- Splash/Launch -->
     <div x-show="!launched" @click="launch()" class="fixed inset-0 bg-black z-[300] flex flex-col items-center justify-center cursor-pointer">
         <p class="font-bold tracking-[0.4em] uppercase text-[14px] mb-4">Audify</p>
         <p class="text-zinc-500 text-[10px] uppercase tracking-widest animate-bounce">Tap to Start</p>
@@ -106,79 +93,13 @@
         
         <img :src="active?.thumbnail" class="global-bg" x-show="active" :class="changing ? 'opacity-0' : 'opacity-35'">
 
-        <main class="flex-grow overflow-y-auto px-4 pt-12 pb-44 z-10 relative">
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-2xl font-black tracking-tight" x-text="currentView === 'home' ? greet() : 'Search'"></h1>
-                <div class="flex gap-5 text-lg"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
-            </div>
-
-            <!-- Home View -->
-            <div x-show="currentView === 'home'" x-transition>
-                <div class="grid grid-cols-2 gap-3 mb-10">
-                    <template x-for="s in trending.slice(0, 6)">
-                        <div @click="play(s, trending)" class="bg-white/10 backdrop-blur-md border border-white/10 rounded-md flex items-center gap-3 h-16 btn-active overflow-hidden">
-                            <img :src="s.thumbnail" class="h-full w-16 object-cover">
-                            <span class="text-[11px] font-bold truncate pr-2" x-text="s.title"></span>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- Artists Section (Fixed PFP) -->
-                <div class="mb-10">
-                    <h2 class="text-xl font-bold mb-4">Artists</h2>
-                    <div class="shelf">
-                        <template x-for="artist in [
-                            {name: 'Taylor Swift', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/3d/8d/64/3d8d6468-232a-f9e4-839e-d3058869850e/1989_Taylor_Version.png/1000x1000bb.jpg'},
-                            {name: 'The Weeknd', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/91/9e/9d/919e9d6a-5421-c301-447a-245f4422e032/21UMGIM10619.rgb.jpg/1000x1000bb.jpg'},
-                            {name: 'Drake', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/97/80/43/97804369-0268-d0f5-5028-2d8868df3303/23UMGIM97017.rgb.jpg/1000x1000bb.jpg'},
-                            {name: 'SZA', img: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/90/13/46/9013460f-e190-7988-1d70-36637e196614/196589578822.jpg/1000x1000bb.jpg'}
-                        ]">
-                            <div @click="query = artist.name; searchMusic(); currentView = 'search'" class="flex flex-col items-center gap-3 flex-shrink-0 btn-active">
-                                <div class="w-36 h-36 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl">
-                                    <img :src="artist.img" referrerpolicy="no-referrer" class="w-full h-full object-cover">
-                                </div>
-                                <span class="text-xs font-bold text-zinc-400" x-text="artist.name"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div class="mb-10">
-                    <h2 class="text-xl font-bold mb-4">Recently Played</h2>
-                    <div class="shelf">
-                        <template x-for="s in trending">
-                            <div @click="play(s, trending)" class="w-36 flex-shrink-0 btn-active">
-                                <img :src="s.thumbnail" class="w-36 h-36 rounded-lg shadow-2xl mb-3 object-cover">
-                                <p class="text-xs font-bold truncate" x-text="s.title"></p>
-                                <p class="text-[10px] text-zinc-400 truncate" x-text="s.artist"></p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search View -->
-            <div x-show="currentView === 'search'" x-transition>
-                <div class="relative mb-6">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-zinc-400"></i>
-                    <input type="text" x-model="query" @input.debounce.500ms="searchMusic()" placeholder="Search..." class="w-full p-4 pl-12 rounded-lg bg-white/10 outline-none">
-                </div>
-                <div class="space-y-5">
-                    <template x-for="s in searchResults">
-                        <div @click="play(s, searchResults)" class="flex items-center gap-4 btn-active">
-                            <img :src="s.thumbnail" class="w-14 h-14 rounded-md object-cover">
-                            <div class="overflow-hidden">
-                                <p class="font-bold text-sm truncate" x-text="s.title"></p>
-                                <p class="text-xs text-zinc-400 truncate" x-text="s.artist"></p>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
+        <!-- YOUR NEW LAYOUT WILL GO HERE -->
+        <main class="flex-grow overflow-y-auto z-10 relative">
+            <!-- Placeholder for your provided layout -->
         </main>
 
-        <!-- Mini Player -->
-        <div x-show="active && !open" @click="open=true" class="fixed bottom-[95px] left-3 right-3 bg-white/10 backdrop-blur-2xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl cursor-pointer">
+        <!-- Mini Player (Kept as requested) -->
+        <div x-show="active && !open" @click="open=true" class="fixed bottom-6 left-3 right-3 bg-white/10 backdrop-blur-2xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl cursor-pointer">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
                 <p class="text-[12px] font-bold truncate" x-text="active?.title"></p>
@@ -187,13 +108,7 @@
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
-        <nav class="bottom-nav">
-            <div class="nav-item" :class="currentView === 'home' ? 'active' : ''" @click="currentView = 'home'"><i class="fa-solid fa-house"></i><span class="text-[10px] font-bold">Home</span></div>
-            <div class="nav-item" :class="currentView === 'search' ? 'active' : ''" @click="currentView = 'search'"><i class="fa-solid fa-magnifying-glass"></i><span class="text-[10px] font-bold">Search</span></div>
-            <div class="nav-item" @click="currentView = 'library'"><i class="fa-solid fa-lines-leaning"></i><span class="text-[10px] font-bold">Library</span></div>
-        </nav>
-
-        <!-- Music Player View -->
+        <!-- Music Player View (Kept exactly as requested) -->
         <div x-show="open" class="player-view" x-transition:enter="transition duration-500" x-transition:enter-start="translate-y-full" x-transition:leave="transition duration-400" x-transition:leave-end="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
             <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
@@ -222,7 +137,6 @@
                     </div>
                 </div>
 
-                <!-- Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -245,7 +159,6 @@
                         </div>
                     </div>
 
-                    <!-- Sources List with Length -->
                     <div x-show="showSources" class="absolute inset-x-0 top-12 bg-zinc-900/95 p-4 rounded-2xl z-[150] shadow-2xl max-h-[300px] overflow-y-auto border border-white/10">
                         <template x-for="source in availableSources">
                             <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
@@ -292,22 +205,17 @@
 
         function audifyApp() {
             return {
-                launched: false, currentView: 'home', query: '', open: false,
+                launched: false, query: '', open: false,
                 playing: false, prog: 0, currentTime: 0, duration: 0, changing: false,
                 trending: [], searchResults: [], active: null, lyrics: [], currentLineIndex: -1,
                 isSynced: true, showSources: false, availableSources: [], activeSourceId: null,
                 shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
 
                 launch() { this.launched = true; },
-                greet() { const h = new Date().getHours(); return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening'; },
                 formatTime(s) { if(!s) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; },
                 
                 async init() {
                     window.audifyAppInstance = this;
-                    try {
-                        const res = await fetch('/search?q=trending+hits');
-                        this.trending = await res.json();
-                    } catch(e) {}
                     setInterval(() => {
                         if(this.playing && ytPlayer?.getCurrentTime) {
                             this.currentTime = ytPlayer.getCurrentTime();
@@ -316,12 +224,6 @@
                             this.syncLyrics();
                         }
                     }, 200);
-                },
-
-                async searchMusic() {
-                    if(!this.query) return;
-                    const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`);
-                    this.searchResults = await res.json();
                 },
 
                 async play(s, list = null) {
