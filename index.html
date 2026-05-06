@@ -195,7 +195,6 @@
         .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
         .chip.active-chip { background: #1ed760; color: #000; }
         
-        /* UPDATED: Artist Banner with Fade effect matching Screenshot (12).png */
         .artist-banner {
             height: 350px;
             background-size: cover;
@@ -209,7 +208,6 @@
             content: '';
             position: absolute;
             inset: 0;
-            /* Heavy black fade at the bottom to match the list background */
             background: linear-gradient(to bottom, transparent 30%, rgba(18, 18, 18, 0.8) 70%, rgba(18, 18, 18, 1) 100%);
         }
     </style>
@@ -296,7 +294,6 @@
                     <button onclick="switchTab('home', document.querySelector('.nav-item'))" class="absolute top-10 left-4 z-20 bg-black/40 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
                     <h1 id="artistNameDisplay" class="text-5xl font-black z-10">Artist</h1>
                 </div>
-                <!-- Songs start immediately after banner -->
                 <div id="artistSongs" class="flex flex-col gap-1 p-2 bg-[#121212]"></div>
             </div>
         </div>
@@ -325,10 +322,12 @@
     <script>
         const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
         
+        // --- UPDATED: Global filtration for all content ---
         const BANNED_KEYWORDS = ['bollywood', 't-series', 'tseries', 'remix', 'hindi', 'punjabi', 'mashup', 'cover', 'lofi remix'];
 
         function isClean(song) {
             const textToScan = `${song.title} ${song.artist}`.toLowerCase();
+            // Returns true only if the song is an "original topic" track
             return !BANNED_KEYWORDS.some(word => textToScan.includes(word));
         }
 
@@ -336,6 +335,7 @@
             try {
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
+                // Apply global filter to strip out unwanted content
                 return data.filter(isClean);
             } catch (err) {
                 console.error("API Error:", err);
@@ -352,9 +352,9 @@
         async function loadHomeSections() {
             const [hits, mixes, artists, trending] = await Promise.all([
                 fetchSongs("top global hits 2026"),
-                fetchSongs("original audio"),
-                fetchSongs("top artists 2026"),
-                fetchSongs("billboard hot 100")
+                fetchSongs("original audio tracks"),
+                fetchSongs("top global artists 2026"),
+                fetchSongs("trending worldwide") // Updated query for general topics
             ]);
 
             document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
@@ -379,11 +379,12 @@
                 </div>
             `).join('');
 
+            // Render Trending Now with the filtered, original topic tracks
             renderList('recentList', trending.slice(0, 8));
         }
 
         async function loadSearchRecommendations() {
-            const recs = await fetchSongs("trending original");
+            const recs = await fetchSongs("trending original music");
             renderList('searchRecommendedList', recs.slice(0, 10));
         }
 
