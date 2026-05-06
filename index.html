@@ -83,7 +83,7 @@
 </head>
 <body x-data="audifyApp()" x-init="init()">
 
-    <!-- Splash/Launch -->
+    <!-- Launch Screen -->
     <div x-show="!launched" @click="launch()" class="fixed inset-0 bg-black z-[300] flex flex-col items-center justify-center cursor-pointer">
         <p class="font-bold tracking-[0.4em] uppercase text-[14px] mb-4">Audify</p>
         <p class="text-zinc-500 text-[10px] uppercase tracking-widest animate-bounce">Tap to Start</p>
@@ -93,13 +93,13 @@
         
         <img :src="active?.thumbnail" class="global-bg" x-show="active" :class="changing ? 'opacity-0' : 'opacity-35'">
 
-        <!-- YOUR NEW LAYOUT WILL GO HERE -->
+        <!-- Main Content Area (Layout Removed as Requested) -->
         <main class="flex-grow overflow-y-auto z-10 relative">
-            <!-- Placeholder for your provided layout -->
+            <!-- This area is ready for your custom layout -->
         </main>
 
-        <!-- Mini Player (Kept as requested) -->
-        <div x-show="active && !open" @click="open=true" class="fixed bottom-6 left-3 right-3 bg-white/10 backdrop-blur-2xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl cursor-pointer">
+        <!-- Mini Player -->
+        <div x-show="active && !open" @click="open=true" class="fixed bottom-10 left-3 right-3 bg-white/10 backdrop-blur-2xl border border-white/10 h-16 rounded-xl flex items-center px-3 gap-4 z-40 shadow-2xl cursor-pointer">
             <img :src="active?.thumbnail" class="w-11 h-11 rounded-lg object-cover">
             <div class="flex-grow overflow-hidden">
                 <p class="text-[12px] font-bold truncate" x-text="active?.title"></p>
@@ -108,7 +108,7 @@
             <button @click.stop="toggle()"><i class="fa-solid text-white text-lg" :class="playing ? 'fa-pause' : 'fa-play'"></i></button>
         </div>
 
-        <!-- Music Player View (Kept exactly as requested) -->
+        <!-- Music Player View -->
         <div x-show="open" class="player-view" x-transition:enter="transition duration-500" x-transition:enter-start="translate-y-full" x-transition:leave="transition duration-400" x-transition:leave-end="translate-y-full">
             <img :src="active?.thumbnail" class="immersive-bg" :class="changing ? 'opacity-0' : 'opacity-80'">
             <div class="min-h-screen p-8 flex flex-col relative z-10 pb-6">
@@ -127,6 +127,7 @@
                     <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
 
+                <!-- Progress Bar -->
                 <div class="mb-10">
                     <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
                         <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
@@ -137,6 +138,7 @@
                     </div>
                 </div>
 
+                <!-- Main Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -150,6 +152,7 @@
                     </button>
                 </div>
 
+                <!-- Lyrics Section -->
                 <div class="flex flex-col flex-grow relative">
                     <div class="flex justify-between items-center mb-4 relative z-[130]">
                         <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
@@ -205,22 +208,38 @@
 
         function audifyApp() {
             return {
-                launched: false, query: '', open: false,
-                playing: false, prog: 0, currentTime: 0, duration: 0, changing: false,
-                trending: [], searchResults: [], active: null, lyrics: [], currentLineIndex: -1,
-                isSynced: true, showSources: false, availableSources: [], activeSourceId: null,
-                shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
+                launched: false, 
+                query: '', 
+                open: false,
+                playing: false, 
+                prog: 0, 
+                currentTime: 0, 
+                duration: 0, 
+                changing: false,
+                active: null, 
+                lyrics: [], 
+                currentLineIndex: -1,
+                isSynced: true, 
+                showSources: false, 
+                availableSources: [], 
+                activeSourceId: null,
+                shuffle: false, 
+                repeatMode: 'off', 
+                queue: [], 
+                originalQueue: [], 
+                currentIndex: -1,
 
                 launch() { this.launched = true; },
                 formatTime(s) { if(!s) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; },
                 
                 async init() {
                     window.audifyAppInstance = this;
+                    // Sync loop
                     setInterval(() => {
                         if(this.playing && ytPlayer?.getCurrentTime) {
                             this.currentTime = ytPlayer.getCurrentTime();
                             this.duration = ytPlayer.getDuration();
-                            this.prog = (this.currentTime / this.duration) * 100;
+                            this.prog = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
                             this.syncLyrics();
                         }
                     }, 200);
@@ -234,7 +253,10 @@
                     }
                     this.active = s;
                     this.currentIndex = this.queue.findIndex(i => i.id === s.id);
-                    if(ytPlayer?.loadVideoById) { ytPlayer.loadVideoById(s.id); this.playing = true; }
+                    if(ytPlayer?.loadVideoById) { 
+                        ytPlayer.loadVideoById(s.id); 
+                        this.playing = true; 
+                    }
                     this.fetchLyrics(s);
                     setTimeout(() => this.changing = false, 400);
                 },
@@ -242,9 +264,13 @@
                 async fetchLyrics(track) {
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
+                        if (!res.ok) return;
                         const data = await res.json();
-                        if(data.length) { this.availableSources = data; this.applySource(data[0]); }
-                    } catch(e) {}
+                        if(data && data.length) { 
+                            this.availableSources = data; 
+                            this.applySource(data[0]); 
+                        }
+                    } catch(e) { console.warn('Lyrics fetch failed'); }
                 },
 
                 applySource(source) {
@@ -254,11 +280,14 @@
                             const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
                             return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
                         }).filter(l => l?.text);
+                    } else {
+                        this.lyrics = [{time: 0, text: "Lyrics not available for this source"}];
                     }
                     this.showSources = false;
                 },
 
                 syncLyrics() {
+                    if (!this.lyrics.length) return;
                     let index = this.lyrics.findLastIndex(l => this.currentTime >= l.time);
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
@@ -278,16 +307,24 @@
                 prev() { if(this.currentIndex > 0) this.play(this.queue[this.currentIndex - 1]); },
                 toggleShuffle() {
                     this.shuffle = !this.shuffle;
-                    this.queue = this.shuffle ? this.shuffleArray([...this.originalQueue]) : [...this.originalQueue];
-                    this.currentIndex = this.queue.findIndex(i => i.id === this.active.id);
+                    if (this.active) {
+                        this.queue = this.shuffle ? this.shuffleArray([...this.originalQueue]) : [...this.originalQueue];
+                        this.currentIndex = this.queue.findIndex(i => i.id === this.active.id);
+                    }
                 },
                 toggleRepeat() {
                     const modes = ['off', 'all', 'one'];
                     this.repeatMode = modes[(modes.indexOf(this.repeatMode) + 1) % modes.length];
                 },
                 shuffleArray(a) { for(let i=a.length-1; i>0; i--){ let j=Math.floor(Math.random()*(i+1)); [a[i], a[j]]=[a[j], a[i]]; } return a; },
-                toggle() { this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); },
-                seek(e) { ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); }
+                toggle() { 
+                    if (!ytPlayer) return;
+                    this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); 
+                },
+                seek(e) { 
+                    if (!ytPlayer) return;
+                    ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); 
+                }
             }
         }
     </script>
