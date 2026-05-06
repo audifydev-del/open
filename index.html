@@ -9,24 +9,34 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600;700;800&display=swap');
 
-        body { background-color: #000; color: #fff; font-family: 'Figtree', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #splash-screen { position: fixed; inset: 0; background: #000; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s ease; }
-        .app-container { width: 100%; max-width: 420px; height: 100%; background-color: #000; position: relative; display: flex; flex-direction: column; overflow: hidden; }
-        .view-wrapper { position: relative; flex: 1; width: 100%; overflow: hidden; }
+        body { background-color: #000; color: #fff; font-family: 'Figtree', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
         
-        .view { position: absolute; inset: 0; opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity 0.3s ease, transform 0.3s ease; overflow-y: auto; padding-bottom: 180px; }
-        .view.active { opacity: 1; pointer-events: auto; transform: translateY(0); z-index: 10; }
+        #splash-screen { 
+            position: fixed; inset: 0; background: #000; 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 10000; transition: opacity 0.4s ease; pointer-events: none;
+        }
+        #splash-screen.visible { pointer-events: auto; opacity: 1; }
+        #splash-screen.hidden { opacity: 0; visibility: hidden; }
+
+        .app-container { width: 100%; max-width: 420px; height: 100vh; margin: 0 auto; background-color: #000; position: relative; display: flex; flex-direction: column; }
+        
+        .view-wrapper { position: relative; flex: 1; overflow: hidden; }
+        
+        .view { 
+            position: absolute; inset: 0; opacity: 0; pointer-events: none; 
+            transform: translateY(10px); transition: opacity 0.25s ease, transform 0.25s ease; 
+            overflow-y: auto; padding-bottom: 160px; 
+        }
+        .view.active { opacity: 1; pointer-events: auto; transform: translateY(0); z-index: 50; }
         .view::-webkit-scrollbar { display: none; }
 
-        @keyframes songPop { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-song { animation: songPop 0.4s ease forwards; opacity: 0; }
-
         .home-gradient { background: linear-gradient(to bottom, #2a2a2a 0%, #121212 25%, #121212 100%); }
-        .ui-fixed-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 100; background: linear-gradient(to top, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%); padding-bottom: env(safe-area-inset-bottom); }
-        .mini-player { background: #282828; margin: 0 8px 8px 8px; height: 56px; border-radius: 8px; display: flex; align-items: center; padding: 0 12px; position: relative; }
         
-        .bottom-nav { height: 70px; display: flex; justify-content: space-around; align-items: center; padding-bottom: 10px; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #b3b3b3; cursor: pointer; }
+        .ui-fixed-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to top, #000 80%, transparent 100%); }
+        .mini-player { background: #282828; margin: 8px; height: 56px; border-radius: 8px; display: flex; align-items: center; padding: 0 12px; cursor: pointer; }
+        .bottom-nav { height: 65px; display: flex; justify-content: space-around; align-items: center; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #b3b3b3; cursor: pointer; flex: 1; }
         .nav-item.active { color: #fff; }
 
         .shortcut-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 16px; }
@@ -34,64 +44,53 @@
         .shortcut-card img { height: 100%; width: 56px; object-fit: cover; margin-right: 8px; }
 
         .album-scroll { display: flex; gap: 16px; overflow-x: auto; padding: 0 16px 20px 16px; }
-        .album-item { min-width: 145px; cursor: pointer; }
-        .album-item img { width: 145px; height: 145px; border-radius: 4px; margin-bottom: 8px; object-fit: cover; }
-
         .artist-item { min-width: 110px; text-align: center; cursor: pointer; }
-        .artist-item img { width: 110px; height: 110px; border-radius: 50%; margin-bottom: 8px; object-fit: cover; }
+        .artist-item img { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; }
 
-        .song-list-item { display: flex; align-items: center; gap: 12px; padding: 8px 16px; cursor: pointer; }
+        .song-list-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; width: 100%; }
+        .song-list-item:active { background: rgba(255,255,255,0.1); }
         .thumb-sm { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
-        .thumb-xs { width: 40px; height: 40px; border-radius: 3px; object-fit: cover; }
         
-        .browse-box { h-24 rounded p-3 font-bold relative overflow-hidden cursor: pointer; transition: transform 0.2s; }
-        .browse-box:active { transform: scale(0.95); }
-
         .progress-bar { position: absolute; bottom: 0; left: 12px; right: 12px; height: 2px; background: rgba(255,255,255,0.1); }
-        .progress-fill { width: 40%; height: 100%; background: #fff; }
+        .progress-fill { width: 20%; height: 100%; background: #fff; }
     </style>
 </head>
 <body>
 
-    <div id="splash-screen">
-        <img src="https://audifydev-del.github.io/open/assets/ic.png" alt="Logo" class="w-40 h-40">
+    <div id="splash-screen" class="visible">
+        <img src="https://audifydev-del.github.io/open/assets/ic.png" alt="Logo" class="w-32 h-32">
     </div>
 
     <div class="app-container">
         <div class="view-wrapper">
-            <!-- HOME VIEW -->
+            <!-- HOME -->
             <div id="home" class="view active home-gradient">
                 <header class="p-4 pt-10 flex justify-between items-center">
                     <h1 class="text-2xl font-bold">Good evening</h1>
-                    <div class="flex gap-5 text-xl"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i></div>
+                    <div class="flex gap-5 text-xl"><i class="fa-solid fa-gear"></i></div>
                 </header>
                 <div id="shortcutGrid" class="shortcut-grid"></div>
-                <div class="mt-4"><h2 class="text-xl font-bold px-4 mb-4">Your top mixes</h2><div id="topMixesScroll" class="album-scroll"></div></div>
-                <div class="mt-6"><h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2><div id="popularArtistsScroll" class="album-scroll"></div></div>
-                <div class="mt-6"><h2 class="text-xl font-bold px-4 mb-4">Trending Now</h2><div id="recentList" class="flex flex-col"></div></div>
+                <div class="mt-4"><h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2><div id="popularArtistsScroll" class="album-scroll"></div></div>
+                <div class="mt-6"><h2 class="text-xl font-bold px-4 mb-4">Trending</h2><div id="recentList" class="flex flex-col"></div></div>
             </div>
 
-            <!-- SEARCH VIEW -->
+            <!-- SEARCH -->
             <div id="search" class="view bg-black">
                 <header class="p-4 pt-10">
                     <h1 class="text-2xl font-bold mb-4">Search</h1>
                     <div class="bg-white text-black p-3 rounded font-bold flex items-center gap-3 mb-6">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="mainSearch" placeholder="What do you want to listen to?" class="w-full outline-none bg-transparent">
+                        <input type="text" id="mainSearch" placeholder="Artists, songs, or podcasts" class="w-full outline-none bg-transparent">
                     </div>
-                    
                     <div id="searchDefault">
                         <h2 class="text-lg font-bold mb-4">Browse all</h2>
                         <div class="grid grid-cols-2 gap-3 mb-8">
-                            <div class="h-24 bg-pink-600 rounded p-3 font-bold relative overflow-hidden cursor-pointer" onclick="openCategory('Pop')">Pop</div>
-                            <div class="h-24 bg-purple-700 rounded p-3 font-bold relative overflow-hidden cursor-pointer" onclick="openCategory('Dance')">Dance</div>
-                            <div class="h-24 bg-blue-600 rounded p-3 font-bold relative overflow-hidden cursor-pointer" onclick="openCategory('Rock')">Rock</div>
-                            <div class="h-24 bg-orange-600 rounded p-3 font-bold relative overflow-hidden cursor-pointer" onclick="openCategory('Hip Hop')">Hip Hop</div>
+                            <div class="h-24 bg-pink-600 rounded p-3 font-bold cursor-pointer" onclick="openCategory('Pop')">Pop</div>
+                            <div class="h-24 bg-purple-700 rounded p-3 font-bold cursor-pointer" onclick="openCategory('Dance')">Dance</div>
                         </div>
-                        <h2 class="text-lg font-bold mb-4">Recommended for you</h2>
+                        <h2 class="text-lg font-bold mb-4">Recommended</h2>
                         <div id="searchRecommendedList" class="flex flex-col gap-1"></div>
                     </div>
-
                     <div id="searchRecs" class="flex flex-col gap-1"></div>
                 </header>
             </div>
@@ -104,125 +103,101 @@
                 </header>
                 <div id="categorySongs" class="flex flex-col gap-1"></div>
             </div>
-
-            <!-- ARTIST VIEW -->
-            <div id="artist-profile" class="view bg-[#121212]">
-                <div id="artistBanner" class="h-64 bg-cover bg-center relative flex items-end p-4">
-                    <button onclick="switchTab('home')" class="absolute top-10 left-4 bg-black/20 w-8 h-8 rounded-full"><i class="fa-solid fa-chevron-left"></i></button>
-                    <h1 id="artistNameDisplay" class="text-4xl font-black z-10">Artist</h1>
-                </div>
-                <div id="artistSongs" class="flex flex-col gap-1 p-2"></div>
-            </div>
         </div>
 
-        <!-- PLAYER & NAV -->
+        <!-- PLAYER & NAVIGATION -->
         <div class="ui-fixed-bottom">
-            <div class="mini-player">
+            <div class="mini-player" onclick="console.log('Player clicked')">
                 <img id="playerThumb" src="https://audifydev-del.github.io/open/assets/ic.png" class="w-10 h-10 rounded">
                 <div class="flex-1 ml-3 overflow-hidden">
                     <p id="playerTitle" class="text-xs font-bold truncate">Audify</p>
-                    <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Select music</p>
+                    <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Ready to play</p>
                 </div>
-                <div class="mr-2"><i class="fa-solid fa-play text-xl"></i></div>
+                <div class="px-2"><i class="fa-solid fa-play text-xl"></i></div>
                 <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
             <nav class="bottom-nav">
-                <div class="nav-item active" onclick="switchTab('home', this)"><i class="fa-solid fa-house text-xl mb-1"></i><span>Home</span></div>
-                <div class="nav-item" onclick="switchTab('search', this)"><i class="fa-solid fa-magnifying-glass text-xl mb-1"></i><span>Search</span></div>
-                <div class="nav-item" onclick="switchTab('library', this)"><i class="fa-solid fa-lines-leaning text-xl mb-1"></i><span>Library</span></div>
+                <div class="nav-item active" onclick="switchTab('home', this)"><i class="fa-solid fa-house text-xl"></i><span>Home</span></div>
+                <div class="nav-item" onclick="switchTab('search', this)"><i class="fa-solid fa-magnifying-glass text-xl"></i><span>Search</span></div>
+                <div class="nav-item" onclick="switchTab('library', this)"><i class="fa-solid fa-lines-leaning text-xl"></i><span>Library</span></div>
             </nav>
         </div>
     </div>
 
     <script>
-        const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
+        const fallback = "https://audifydev-del.github.io/open/assets/ic.png";
 
-        async function fetchSongs(query) {
+        async function apiFetch(q) {
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
-                return await response.json();
-            } catch (err) { return []; }
+                const r = await fetch(`/search?q=${encodeURIComponent(q)}`);
+                return await r.json();
+            } catch(e) { return []; }
         }
 
-        function playSong(title, artist, thumb) {
-            document.getElementById('playerTitle').innerText = title;
-            document.getElementById('playerArtist').innerText = artist;
-            document.getElementById('playerThumb').src = thumb || fallbackThumb;
+        function play(t, a, i) {
+            document.getElementById('playerTitle').innerText = t;
+            document.getElementById('playerArtist').innerText = a;
+            document.getElementById('playerThumb').src = i || fallback;
         }
 
-        async function openCategory(catName) {
-            document.getElementById('categoryTitleDisplay').innerText = catName;
+        async function openCategory(name) {
+            document.getElementById('categoryTitleDisplay').innerText = name;
             switchTab('category-view');
-            document.getElementById('categorySongs').innerHTML = '<p class="p-4 text-gray-400">Loading results...</p>';
-            const results = await fetchSongs(catName + " music hits");
-            renderList('categorySongs', results);
+            const res = await apiFetch(name + " hits");
+            render('categorySongs', res);
         }
 
-        async function openArtistProfile(name, thumb) {
-            document.getElementById('artistNameDisplay').innerText = name;
-            document.getElementById('artistBanner').style.backgroundImage = `url(${thumb})`;
-            switchTab('artist-profile');
-            const results = await fetchSongs(name);
-            renderList('artistSongs', results);
-        }
-
-        function renderList(targetId, songs) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = songs.map(s => `
-                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                    <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
+        function render(id, data) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.innerHTML = data.map(s => `
+                <div class="song-list-item" onclick="play('${s.title.replace(/'/g,"")}', '${s.artist.replace(/'/g,"")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallback}'">
                     <div class="flex-1 overflow-hidden">
                         <p class="text-base font-bold truncate">${s.title}</p>
                         <p class="text-xs text-gray-400">${s.artist}</p>
                     </div>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
 
-        // Search Input
+        function switchTab(id, el) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active');
+            
+            if(el) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                el.classList.add('active');
+            }
+        }
+
         document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                const query = e.target.value;
-                if (!query) return;
+            if(e.key === 'Enter') {
                 document.getElementById('searchDefault').style.display = 'none';
-                const results = await fetchSongs(query);
-                renderList('searchRecs', results);
+                const res = await apiFetch(e.target.value);
+                render('searchRecs', res);
             }
         });
 
-        function switchTab(tabId, el) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            if(el) {
-                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                el.classList.add('active');
-                if(tabId === 'search') {
-                    document.getElementById('searchDefault').style.display = 'block';
-                    document.getElementById('searchRecs').innerHTML = '';
-                    document.getElementById('mainSearch').value = '';
-                }
-            }
-        }
-
         window.onload = async () => {
-            const hits = await fetchSongs("hits 2026");
-            const artists = await fetchSongs("trending artists");
-            const recs = await fetchSongs("for you");
+            // Unfreeze UI immediately
+            const splash = document.getElementById('splash-screen');
+            splash.classList.replace('visible', 'hidden');
+
+            const [hits, artists] = await Promise.all([apiFetch("2026 hits"), apiFetch("top artists")]);
             
-            document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
-                <div class="shortcut-card" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'"><span>${s.title}</span>
+            document.getElementById('shortcutGrid').innerHTML = hits.slice(0,6).map(s => `
+                <div class="shortcut-card" onclick="play('${s.title.replace(/'/g,"")}', '${s.artist.replace(/'/g,"")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallback}'"><span>${s.title}</span>
                 </div>`).join('');
 
-            document.getElementById('popularArtistsScroll').innerHTML = artists.slice(0, 6).map(s => `
-                <div class="artist-item" onclick="openArtistProfile('${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'"><p class="text-xs font-bold truncate">${s.artist}</p>
+            document.getElementById('popularArtistsScroll').innerHTML = artists.slice(0,6).map(s => `
+                <div class="artist-item" onclick="openCategory('${s.artist.replace(/'/g,"")}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallback}'"><p class="text-xs font-bold">${s.artist}</p>
                 </div>`).join('');
 
-            renderList('searchRecommendedList', recs.slice(0, 8));
-            renderList('recentList', hits.slice(6, 14));
-
-            setTimeout(() => { document.getElementById('splash-screen').style.opacity = '0'; }, 800);
+            render('recentList', hits.slice(6,12));
+            render('searchRecommendedList', hits.slice(0,5));
         };
     </script>
 </body>
