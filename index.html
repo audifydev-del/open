@@ -143,7 +143,6 @@
             font-weight: bold;
             cursor: pointer;
         }
-
         .shortcut-card img { height: 100%; width: 56px; object-fit: cover; margin-right: 8px; }
 
         .album-scroll {
@@ -179,10 +178,10 @@
             padding: 8px 16px;
             cursor: pointer;
         }
+        .song-list-item:active { background: rgba(255,255,255,0.1); }
 
         .thumb-sm { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
         .thumb-xs { width: 40px; height: 40px; border-radius: 3px; object-fit: cover; }
-        .thumb-round { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
 
         .progress-bar {
             position: absolute;
@@ -192,7 +191,7 @@
             height: 2px;
             background: rgba(255,255,255,0.1);
         }
-        .progress-fill { width: 30%; height: 100%; background: #fff; border-radius: 2px; }
+        .progress-fill { width: 35%; height: 100%; background: #fff; border-radius: 2px; }
 
         .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
         .chip.active-chip { background: #1ed760; color: #000; }
@@ -233,30 +232,21 @@
                     </div>
                 </header>
 
-                <!-- Shortcut Grid (API Linked) -->
-                <div id="shortcutGrid" class="shortcut-grid">
-                    <!-- Dynamic shortcuts will load here -->
-                </div>
+                <div id="shortcutGrid" class="shortcut-grid"></div>
 
                 <div class="mt-4">
                     <h2 class="text-xl font-bold px-4 mb-4">Your top mixes</h2>
-                    <div id="topMixesScroll" class="album-scroll">
-                        <!-- Dynamic mixes will load here -->
-                    </div>
+                    <div id="topMixesScroll" class="album-scroll"></div>
                 </div>
 
                 <div class="mt-6">
                     <h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2>
-                    <div id="popularArtistsScroll" class="album-scroll">
-                        <!-- Dynamic artists will load here -->
-                    </div>
+                    <div id="popularArtistsScroll" class="album-scroll"></div>
                 </div>
 
                 <div class="mt-6">
                     <h2 class="text-xl font-bold px-4 mb-4">Trending Now</h2>
-                    <div id="recentList" class="flex flex-col">
-                        <!-- Trending list will load here -->
-                    </div>
+                    <div id="recentList" class="flex flex-col"></div>
                 </div>
             </div>
 
@@ -268,6 +258,8 @@
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="mainSearch" placeholder="What do you want to listen to?" class="w-full outline-none bg-transparent">
                     </div>
+                    
+                    <!-- Default Search Content (Chips + Recommendations) -->
                     <div id="searchDefault">
                         <h2 class="text-lg font-bold mb-4">Browse all</h2>
                         <div class="grid grid-cols-2 gap-3 mb-8">
@@ -276,7 +268,14 @@
                             <div class="h-24 bg-blue-600 rounded p-3 font-bold relative overflow-hidden">Rock</div>
                             <div class="h-24 bg-orange-600 rounded p-3 font-bold relative overflow-hidden">Hip Hop</div>
                         </div>
+                        
+                        <h2 class="text-lg font-bold mb-4">Recommended for you</h2>
+                        <div id="searchRecommendedList" class="flex flex-col gap-1 pb-10">
+                            <!-- Populated by API -->
+                        </div>
                     </div>
+
+                    <!-- Search Results (Hidden by default) -->
                     <div id="searchRecs" class="flex flex-col gap-1 pb-10"></div>
                 </header>
             </div>
@@ -304,7 +303,7 @@
             </div>
         </div>
 
-        <!-- FIXED PLAYER & NAV -->
+        <!-- FIXED UI -->
         <div class="ui-fixed-bottom">
             <div class="mini-player">
                 <img id="playerThumb" src="https://audifydev-del.github.io/open/assets/ic.png" class="w-10 h-10 rounded">
@@ -328,14 +327,7 @@
     <script>
         const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
 
-        // Global Play Function
-        function playSong(title, artist, thumb) {
-            document.getElementById('playerTitle').innerText = title;
-            document.getElementById('playerArtist').innerText = artist;
-            document.getElementById('playerThumb').src = thumb || fallbackThumb;
-        }
-
-        // Fetch Songs helper
+        // Main API Logic
         async function fetchSongs(query) {
             try {
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
@@ -346,49 +338,77 @@
             }
         }
 
-        // Load Home Sections using API
+        function playSong(title, artist, thumb) {
+            document.getElementById('playerTitle').innerText = title;
+            document.getElementById('playerArtist').innerText = artist;
+            document.getElementById('playerThumb').src = thumb || fallbackThumb;
+        }
+
+        // --- HOME LOADER ---
         async function loadHomeSections() {
-            // 1. Load Shortcut Grid
-            const shortcutData = await fetchSongs("hits 2026");
-            const grid = document.getElementById('shortcutGrid');
-            grid.innerHTML = shortcutData.slice(0, 6).map(s => `
+            const [hits, mixes, artists, trending] = await Promise.all([
+                fetchSongs("hits 2026"),
+                fetchSongs("vibes"),
+                fetchSongs("top global artists"),
+                fetchSongs("trending music philippines")
+            ]);
+
+            document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
                 <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
                     <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
                     <span>${s.title}</span>
                 </div>
             `).join('');
 
-            // 2. Load Top Mixes (Albums)
-            const mixData = await fetchSongs("lofi hip hop");
-            const mixScroll = document.getElementById('topMixesScroll');
-            mixScroll.innerHTML = mixData.slice(0, 5).map(s => `
+            document.getElementById('topMixesScroll').innerHTML = mixes.slice(0, 5).map(s => `
                 <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
                     <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
                     <p class="text-[11px] font-bold truncate">${s.title}</p>
-                    <p class="text-[10px] text-gray-400 truncate">Daily Mix</p>
+                    <p class="text-[10px] text-gray-400 truncate">Mix for you</p>
                 </div>
             `).join('');
 
-            // 3. Load Popular Artists
-            const artistData = await fetchSongs("top pop artists");
-            const artistScroll = document.getElementById('popularArtistsScroll');
-            artistScroll.innerHTML = artistData.slice(0, 6).map(s => `
+            document.getElementById('popularArtistsScroll').innerHTML = artists.slice(0, 6).map(s => `
                 <div class="artist-item" onclick="openArtistProfile('${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
                     <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
                     <p class="text-xs font-bold truncate">${s.artist}</p>
                 </div>
             `).join('');
 
-            // 4. Load Trending List
-            const trendData = await fetchSongs("opm trending 2026");
-            const recentList = document.getElementById('recentList');
-            recentList.innerHTML = trendData.slice(0, 8).map(s => `
-                <div class="song-list-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+            renderList('recentList', trending.slice(0, 8));
+        }
+
+        // --- SEARCH LOGIC ---
+        async function loadSearchRecommendations() {
+            const recs = await fetchSongs("popular right now");
+            renderList('searchRecommendedList', recs.slice(0, 10));
+        }
+
+        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (!query) return;
+                
+                // Hide default UI, show results
+                document.getElementById('searchDefault').style.display = 'none';
+                document.getElementById('searchRecs').innerHTML = '<p class="p-4 text-gray-400">Searching...</p>';
+                
+                const results = await fetchSongs(query);
+                renderList('searchRecs', results);
+            }
+        });
+
+        // Universal List Renderer
+        function renderList(targetId, songs) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = songs.map(s => `
+                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
                     <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
                     <div class="flex-1 overflow-hidden">
                         <p class="text-base font-bold truncate">${s.title}</p>
                         <p class="text-xs text-gray-400">${s.artist}</p>
                     </div>
+                    <i class="fa-solid fa-ellipsis-vertical text-gray-400"></i>
                 </div>
             `).join('');
         }
@@ -398,36 +418,8 @@
             document.getElementById('artistBanner').style.backgroundImage = `url(${thumb})`;
             switchTab('artist-profile');
             const results = await fetchSongs(name);
-            document.getElementById('artistSongs').innerHTML = results.map((s, i) => `
-                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                    <p class="text-gray-400 w-4 text-xs">${i+1}</p>
-                    <img src="${s.thumbnail}" class="thumb-xs" onerror="this.src='${fallbackThumb}'">
-                    <div class="flex-1 overflow-hidden">
-                        <p class="text-base font-bold truncate">${s.title}</p>
-                        <p class="text-xs text-gray-400">Popular</p>
-                    </div>
-                </div>
-            `).join('');
+            renderList('artistSongs', results);
         }
-
-        // Search logic
-        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                const query = e.target.value;
-                if (!query) return;
-                document.getElementById('searchDefault').style.display = 'none';
-                const results = await fetchSongs(query);
-                document.getElementById('searchRecs').innerHTML = results.map(s => `
-                    <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                        <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
-                        <div class="flex-1 overflow-hidden">
-                            <p class="text-base font-bold truncate">${s.title}</p>
-                            <p class="text-xs text-gray-400">${s.artist}</p>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        });
 
         function switchTab(tabId, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -435,11 +427,18 @@
             if(el) {
                 document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
                 el.classList.add('active');
+                // Reset search view if returning to it
+                if(tabId === 'search') {
+                    document.getElementById('searchDefault').style.display = 'block';
+                    document.getElementById('searchRecs').innerHTML = '';
+                    document.getElementById('mainSearch').value = '';
+                }
             }
         }
 
         window.onload = () => {
             loadHomeSections();
+            loadSearchRecommendations();
             setTimeout(() => {
                 document.getElementById('splash-screen').style.opacity = '0';
                 setTimeout(() => document.getElementById('splash-screen').remove(), 500);
