@@ -141,7 +141,10 @@
             overflow: hidden;
             font-size: 11px;
             font-weight: bold;
+            cursor: pointer;
         }
+
+        .shortcut-card img { height: 100%; width: 56px; object-fit: cover; margin-right: 8px; }
 
         .album-scroll {
             display: flex;
@@ -151,7 +154,7 @@
         }
         .album-scroll::-webkit-scrollbar { display: none; }
 
-        .album-item { min-width: 145px; }
+        .album-item { min-width: 145px; cursor: pointer; }
         .album-item img {
             width: 145px;
             height: 145px;
@@ -189,13 +192,11 @@
             height: 2px;
             background: rgba(255,255,255,0.1);
         }
-        .progress-fill { width: 45%; height: 100%; background: #fff; border-radius: 2px; }
+        .progress-fill { width: 30%; height: 100%; background: #fff; border-radius: 2px; }
 
         .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
         .chip.active-chip { background: #1ed760; color: #000; }
         
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-
         .artist-banner {
             height: 280px;
             background-size: cover;
@@ -232,42 +233,29 @@
                     </div>
                 </header>
 
-                <div class="shortcut-grid">
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> Liked Songs</div>
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> Daily Mix 1</div>
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> Top Hits</div>
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> Relaxing</div>
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> Discover Weekly</div>
-                    <div class="shortcut-card"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="h-full mr-2"> On Repeat</div>
+                <!-- Shortcut Grid (API Linked) -->
+                <div id="shortcutGrid" class="shortcut-grid">
+                    <!-- Dynamic shortcuts will load here -->
                 </div>
 
                 <div class="mt-4">
                     <h2 class="text-xl font-bold px-4 mb-4">Your top mixes</h2>
-                    <div class="album-scroll">
-                        <div class="album-item"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg"><p class="text-[11px] font-bold">Mix 1</p><p class="text-[10px] text-gray-400">Hip Hop & Soul</p></div>
-                        <div class="album-item"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg"><p class="text-[11px] font-bold">Mix 2</p><p class="text-[10px] text-gray-400">Mood Booster</p></div>
-                        <div class="album-item"><img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg"><p class="text-[11px] font-bold">Mix 3</p><p class="text-[10px] text-gray-400">Chill Vibes</p></div>
+                    <div id="topMixesScroll" class="album-scroll">
+                        <!-- Dynamic mixes will load here -->
                     </div>
                 </div>
 
                 <div class="mt-6">
                     <h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2>
-                    <div class="album-scroll">
-                        <div class="artist-item" onclick="openArtistProfile('The Weeknd')">
-                            <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg">
-                            <p class="text-xs font-bold">The Weeknd</p>
-                        </div>
-                        <div class="artist-item" onclick="openArtistProfile('Justin Bieber')">
-                            <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg">
-                            <p class="text-xs font-bold">Justin Bieber</p>
-                        </div>
+                    <div id="popularArtistsScroll" class="album-scroll">
+                        <!-- Dynamic artists will load here -->
                     </div>
                 </div>
 
                 <div class="mt-6">
-                    <h2 class="text-xl font-bold px-4 mb-4">Recently Played</h2>
+                    <h2 class="text-xl font-bold px-4 mb-4">Trending Now</h2>
                     <div id="recentList" class="flex flex-col">
-                        <!-- Loaded via API -->
+                        <!-- Trending list will load here -->
                     </div>
                 </div>
             </div>
@@ -283,10 +271,10 @@
                     <div id="searchDefault">
                         <h2 class="text-lg font-bold mb-4">Browse all</h2>
                         <div class="grid grid-cols-2 gap-3 mb-8">
-                            <div class="h-24 bg-pink-600 rounded p-3 font-bold relative overflow-hidden">Pop <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="w-16 absolute -right-2 -bottom-2 rotate-12"></div>
-                            <div class="h-24 bg-purple-700 rounded p-3 font-bold relative overflow-hidden">Dance <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="w-16 absolute -right-2 -bottom-2 rotate-12"></div>
-                            <div class="h-24 bg-blue-600 rounded p-3 font-bold relative overflow-hidden">Rock <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="w-16 absolute -right-2 -bottom-2 rotate-12"></div>
-                            <div class="h-24 bg-orange-600 rounded p-3 font-bold relative overflow-hidden">Hip Hop <img src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="w-16 absolute -right-2 -bottom-2 rotate-12"></div>
+                            <div class="h-24 bg-pink-600 rounded p-3 font-bold relative overflow-hidden">Pop</div>
+                            <div class="h-24 bg-purple-700 rounded p-3 font-bold relative overflow-hidden">Dance</div>
+                            <div class="h-24 bg-blue-600 rounded p-3 font-bold relative overflow-hidden">Rock</div>
+                            <div class="h-24 bg-orange-600 rounded p-3 font-bold relative overflow-hidden">Hip Hop</div>
                         </div>
                     </div>
                     <div id="searchRecs" class="flex flex-col gap-1 pb-10"></div>
@@ -296,21 +284,11 @@
             <!-- LIBRARY VIEW -->
             <div id="library" class="view bg-black">
                 <header class="p-4 pt-10 sticky top-0 bg-black z-20">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-orange-600 flex items-center justify-center font-bold text-sm">S</div>
-                            <h1 class="text-2xl font-bold">Your Library</h1>
-                        </div>
-                        <div class="flex gap-5 text-xl">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <i class="fa-solid fa-plus"></i>
-                        </div>
-                    </div>
+                    <h1 class="text-2xl font-bold mb-4">Your Library</h1>
                     <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                         <div class="chip active-chip" onclick="filterLibrary('all', this)">All</div>
                         <div class="chip" onclick="filterLibrary('playlist', this)">Playlists</div>
                         <div class="chip" onclick="filterLibrary('artist', this)">Artists</div>
-                        <div class="chip" onclick="filterLibrary('album', this)">Albums</div>
                     </div>
                 </header>
                 <div id="libraryList" class="flex flex-col gap-1 pb-40"></div>
@@ -318,28 +296,23 @@
 
             <!-- ARTIST PROFILE VIEW -->
             <div id="artist-profile" class="view bg-[#121212]">
-                <div id="artistBanner" class="artist-banner" style="background-image: url('https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg')">
+                <div id="artistBanner" class="artist-banner">
                     <button onclick="switchTab('home', document.querySelector('.nav-item'))" class="absolute top-10 left-4 z-20 bg-black/40 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
                     <h1 id="artistNameDisplay" class="text-5xl font-black z-10">Artist</h1>
                 </div>
-                <div class="p-4 flex items-center gap-4">
-                    <button class="bg-[#1ed760] text-black w-14 h-14 rounded-full flex items-center justify-center text-2xl"><i class="fa-solid fa-play"></i></button>
-                    <button class="border border-gray-500 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Following</button>
-                </div>
-                <div id="artistSongs" class="flex flex-col gap-1"></div>
+                <div id="artistSongs" class="flex flex-col gap-1 p-2"></div>
             </div>
         </div>
 
-        <!-- FIXED BOTTOM UI -->
+        <!-- FIXED PLAYER & NAV -->
         <div class="ui-fixed-bottom">
             <div class="mini-player">
-                <img id="playerThumb" src="https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg" class="w-10 h-10 rounded">
+                <img id="playerThumb" src="https://audifydev-del.github.io/open/assets/ic.png" class="w-10 h-10 rounded">
                 <div class="flex-1 ml-3 overflow-hidden">
-                    <p id="playerTitle" class="text-xs font-bold truncate">Blinding Lights</p>
-                    <p id="playerArtist" class="text-[10px] text-gray-400 truncate">The Weeknd</p>
+                    <p id="playerTitle" class="text-xs font-bold truncate">Not playing</p>
+                    <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Select a song</p>
                 </div>
                 <div class="flex items-center gap-5 mr-1">
-                    <i class="fa-solid fa-laptop-medical text-[#1ed760] text-sm"></i>
                     <i class="fa-solid fa-play text-white text-xl"></i>
                 </div>
                 <div class="progress-bar"><div class="progress-fill"></div></div>
@@ -353,17 +326,16 @@
     </div>
 
     <script>
-        const fallbackThumb = "https://cdn-images.dzcdn.net/images/cover/cf979d162bdd9430a742be2ba588c7f6/1900x1900-000000-80-0-0.jpg";
-        
-        const libraryDB = [
-            { title: "Liked Songs", sub: "Playlist • 124 songs", type: "playlist" },
-            { title: "The Weeknd", sub: "Artist", type: "artist", round: true },
-            { title: "After Hours", sub: "Album • The Weeknd", type: "album" },
-            { title: "Justin Bieber", sub: "Artist", type: "artist", round: true },
-            { title: "Daily Mix 1", sub: "Playlist • For you", type: "playlist" }
-        ];
+        const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
 
-        // API Fetcher
+        // Global Play Function
+        function playSong(title, artist, thumb) {
+            document.getElementById('playerTitle').innerText = title;
+            document.getElementById('playerArtist').innerText = artist;
+            document.getElementById('playerThumb').src = thumb || fallbackThumb;
+        }
+
+        // Fetch Songs helper
         async function fetchSongs(query) {
             try {
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
@@ -374,76 +346,88 @@
             }
         }
 
-        // Mini Player Logic
-        function playSong(title, artist, thumb) {
-            document.getElementById('playerTitle').innerText = title;
-            document.getElementById('playerArtist').innerText = artist;
-            document.getElementById('playerThumb').src = thumb;
-        }
-
-        // Artist Profile Logic
-        async function openArtistProfile(name) {
-            document.getElementById('artistNameDisplay').innerText = name;
-            switchTab('artist-profile');
-            
-            const results = await fetchSongs(name);
-            document.getElementById('artistSongs').innerHTML = results.map((s, i) => `
-                <div class="song-list-item animate-song" style="animation-delay: ${i*0.05}s" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
-                    <p class="text-gray-400 w-4 text-xs">${i+1}</p>
-                    <img src="${s.thumbnail}" class="thumb-xs" onerror="this.src='${fallbackThumb}'">
-                    <div class="flex-1">
-                        <p class="text-base font-bold">${s.title}</p>
-                        <p class="text-xs text-gray-400">Streaming Now</p>
-                    </div>
-                    <i class="fa-solid fa-ellipsis-vertical text-gray-400"></i>
+        // Load Home Sections using API
+        async function loadHomeSections() {
+            // 1. Load Shortcut Grid
+            const shortcutData = await fetchSongs("hits 2026");
+            const grid = document.getElementById('shortcutGrid');
+            grid.innerHTML = shortcutData.slice(0, 6).map(s => `
+                <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <span>${s.title}</span>
                 </div>
             `).join('');
-        }
 
-        // Search Input Handler
-        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                const query = e.target.value;
-                if (!query) return;
-                document.getElementById('searchDefault').style.display = 'none';
-                const results = await fetchSongs(query);
-                renderSongList('searchRecs', results);
-            }
-        });
+            // 2. Load Top Mixes (Albums)
+            const mixData = await fetchSongs("lofi hip hop");
+            const mixScroll = document.getElementById('topMixesScroll');
+            mixScroll.innerHTML = mixData.slice(0, 5).map(s => `
+                <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-[11px] font-bold truncate">${s.title}</p>
+                    <p class="text-[10px] text-gray-400 truncate">Daily Mix</p>
+                </div>
+            `).join('');
 
-        function renderSongList(targetId, songs) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = songs.map(s => `
+            // 3. Load Popular Artists
+            const artistData = await fetchSongs("top pop artists");
+            const artistScroll = document.getElementById('popularArtistsScroll');
+            artistScroll.innerHTML = artistData.slice(0, 6).map(s => `
+                <div class="artist-item" onclick="openArtistProfile('${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-xs font-bold truncate">${s.artist}</p>
+                </div>
+            `).join('');
+
+            // 4. Load Trending List
+            const trendData = await fetchSongs("opm trending 2026");
+            const recentList = document.getElementById('recentList');
+            recentList.innerHTML = trendData.slice(0, 8).map(s => `
                 <div class="song-list-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
                     <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
                     <div class="flex-1 overflow-hidden">
                         <p class="text-base font-bold truncate">${s.title}</p>
                         <p class="text-xs text-gray-400">${s.artist}</p>
                     </div>
-                    <i class="fa-solid fa-ellipsis-vertical text-gray-400"></i>
                 </div>
             `).join('');
         }
 
-        function renderLibrary(items) {
-            const container = document.getElementById('libraryList');
-            container.innerHTML = items.map((item, i) => `
-                <div class="song-list-item animate-song" style="animation-delay: ${i * 0.05}s" onclick="${item.type === 'artist' ? `openArtistProfile('${item.title}')` : ''}">
-                    <img src="${fallbackThumb}" class="${item.round ? 'thumb-round' : 'thumb-sm'}">
-                    <div class="flex-1">
-                        <p class="text-base font-bold">${item.title}</p>
-                        <p class="text-xs text-gray-400">${item.sub}</p>
+        async function openArtistProfile(name, thumb) {
+            document.getElementById('artistNameDisplay').innerText = name;
+            document.getElementById('artistBanner').style.backgroundImage = `url(${thumb})`;
+            switchTab('artist-profile');
+            const results = await fetchSongs(name);
+            document.getElementById('artistSongs').innerHTML = results.map((s, i) => `
+                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <p class="text-gray-400 w-4 text-xs">${i+1}</p>
+                    <img src="${s.thumbnail}" class="thumb-xs" onerror="this.src='${fallbackThumb}'">
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-base font-bold truncate">${s.title}</p>
+                        <p class="text-xs text-gray-400">Popular</p>
                     </div>
                 </div>
             `).join('');
         }
 
-        function filterLibrary(type, el) {
-            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active-chip'));
-            el.classList.add('active-chip');
-            if (type === 'all') renderLibrary(libraryDB);
-            else renderLibrary(libraryDB.filter(item => item.type === type));
-        }
+        // Search logic
+        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (!query) return;
+                document.getElementById('searchDefault').style.display = 'none';
+                const results = await fetchSongs(query);
+                document.getElementById('searchRecs').innerHTML = results.map(s => `
+                    <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                        <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-base font-bold truncate">${s.title}</p>
+                            <p class="text-xs text-gray-400">${s.artist}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        });
 
         function switchTab(tabId, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -451,22 +435,14 @@
             if(el) {
                 document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
                 el.classList.add('active');
-                if(tabId === 'search') document.getElementById('searchDefault').style.display = 'block';
             }
-            if(tabId === 'library') renderLibrary(libraryDB);
         }
 
-        window.onload = async () => {
-            const trending = await fetchSongs("trending music philippines");
-            renderSongList('recentList', trending.slice(0, 10));
-            renderLibrary(libraryDB);
-            
+        window.onload = () => {
+            loadHomeSections();
             setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                if (splash) {
-                    splash.style.opacity = '0';
-                    setTimeout(() => splash.remove(), 500);
-                }
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('splash-screen').remove(), 500);
             }, 1000);
         };
     </script>
