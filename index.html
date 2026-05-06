@@ -62,21 +62,6 @@
             text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.2);
         }
 
-        .control-pill {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
-            padding: 6px 12px; border-radius: 20px; font-size: 10px; font-weight: 800;
-            text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; gap: 6px; z-index: 120;
-        }
-        .control-pill.active { background: #fff; color: #000; }
-        
-        .source-item {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
-            padding: 14px; border-radius: 12px; margin-bottom: 10px; cursor: pointer;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .source-item.active { border-color: #fff; background: rgba(255,255,255,0.3); }
-
         .btn-active:active { transform: scale(0.92); opacity: 0.7; }
         #yt-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
@@ -93,9 +78,8 @@
         
         <img :src="active?.thumbnail" class="global-bg" x-show="active" :class="changing ? 'opacity-0' : 'opacity-35'">
 
-        <!-- Main Content Area (Layout Removed as Requested) -->
+        <!-- YOUR NEW LAYOUT WILL GO HERE -->
         <main class="flex-grow overflow-y-auto z-10 relative">
-            <!-- This area is ready for your custom layout -->
         </main>
 
         <!-- Mini Player -->
@@ -127,7 +111,6 @@
                     <p class="text-lg text-white/60 font-medium truncate" x-text="active?.artist"></p>
                 </div>
 
-                <!-- Progress Bar -->
                 <div class="mb-10">
                     <div class="relative h-1.5 bg-white/10 rounded-full mb-2" @click="seek($event)">
                         <div class="absolute h-full bg-white rounded-full" :style="`width: ${prog}%`"></div>
@@ -138,7 +121,6 @@
                     </div>
                 </div>
 
-                <!-- Main Controls -->
                 <div class="flex justify-around items-center mb-12">
                     <button @click="toggleShuffle()" class="text-lg" :class="shuffle ? 'text-white' : 'text-white/20'"><i class="fa-solid fa-shuffle"></i></button>
                     <button @click="prev()" class="btn-active"><i class="fa-solid fa-backward-step text-3xl"></i></button>
@@ -152,35 +134,10 @@
                     </button>
                 </div>
 
-                <!-- Lyrics Section -->
-                <div class="flex flex-col flex-grow relative">
-                    <div class="flex justify-between items-center mb-4 relative z-[130]">
-                        <h3 class="text-xs font-black uppercase tracking-widest text-white/30">Lyrics</h3>
-                        <div class="flex gap-2">
-                            <button @click="showSources = !showSources" class="control-pill" :class="showSources ? 'active' : ''"><i class="fa-solid fa-list-ul"></i> Sources</button>
-                            <button @click="isSynced = !isSynced" class="control-pill" :class="isSynced ? 'active' : ''"><i class="fa-solid fa-arrows-rotate"></i> Sync</button>
-                        </div>
-                    </div>
-
-                    <div x-show="showSources" class="absolute inset-x-0 top-12 bg-zinc-900/95 p-4 rounded-2xl z-[150] shadow-2xl max-h-[300px] overflow-y-auto border border-white/10">
-                        <template x-for="source in availableSources">
-                            <div @click="applySource(source)" class="source-item" :class="activeSourceId === source.id ? 'active' : ''">
-                                <div class="overflow-hidden flex-grow">
-                                    <p class="text-xs font-bold truncate" x-text="source.trackName"></p>
-                                    <p class="text-[10px] text-white/50" x-text="source.artistName"></p>
-                                </div>
-                                <div class="text-[10px] font-mono text-white/40 ml-4">
-                                    <span x-text="formatTime(source.duration)"></span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <div class="lyrics-window" id="lyrics-window">
-                        <template x-for="(line, index) in lyrics">
-                            <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
-                        </template>
-                    </div>
+                <div class="lyrics-window" id="lyrics-window">
+                    <template x-for="(line, index) in lyrics">
+                        <div class="lyrics-line" :id="'line-'+index" :class="currentLineIndex === index ? 'active' : ''" x-text="line.text"></div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -191,11 +148,14 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         let ytPlayer;
+        let apiReady = false;
+
         function onYouTubeIframeAPIReady() {
             ytPlayer = new YT.Player('player', {
-                height: '1', width: '1', videoId: '',
-                playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1 },
+                height: '1', width: '1', videoId: 'dQw4w9WgXcQ', // Dummy video to initialize
+                playerVars: { 'autoplay': 0, 'controls': 0, 'playsinline': 1 },
                 events: {
+                    'onReady': () => { apiReady = true; },
                     'onStateChange': (e) => {
                         if(window.audifyAppInstance) {
                             window.audifyAppInstance.playing = (e.data === YT.PlayerState.PLAYING);
@@ -208,44 +168,36 @@
 
         function audifyApp() {
             return {
-                launched: false, 
-                query: '', 
-                open: false,
-                playing: false, 
-                prog: 0, 
-                currentTime: 0, 
-                duration: 0, 
-                changing: false,
-                active: null, 
-                lyrics: [], 
-                currentLineIndex: -1,
-                isSynced: true, 
-                showSources: false, 
-                availableSources: [], 
-                activeSourceId: null,
-                shuffle: false, 
-                repeatMode: 'off', 
-                queue: [], 
-                originalQueue: [], 
-                currentIndex: -1,
+                launched: false, open: false, playing: false,
+                prog: 0, currentTime: 0, duration: 0, changing: false,
+                active: null, lyrics: [], currentLineIndex: -1,
+                shuffle: false, repeatMode: 'off', queue: [], originalQueue: [], currentIndex: -1,
 
-                launch() { this.launched = true; },
+                launch() { 
+                    this.launched = true;
+                    // Interaction: "Wake up" the player
+                    if (ytPlayer && ytPlayer.playVideo) {
+                        ytPlayer.playVideo();
+                        setTimeout(() => ytPlayer.pauseVideo(), 100);
+                    }
+                },
+                
                 formatTime(s) { if(!s) return "0:00"; let m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; },
                 
-                async init() {
+                init() {
                     window.audifyAppInstance = this;
-                    // Sync loop
                     setInterval(() => {
                         if(this.playing && ytPlayer?.getCurrentTime) {
                             this.currentTime = ytPlayer.getCurrentTime();
                             this.duration = ytPlayer.getDuration();
-                            this.prog = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
+                            this.prog = (this.currentTime / this.duration) * 100;
                             this.syncLyrics();
                         }
                     }, 200);
                 },
 
                 async play(s, list = null) {
+                    if (!apiReady) return;
                     this.changing = true;
                     if (list) { 
                         this.originalQueue = [...list]; 
@@ -253,78 +205,41 @@
                     }
                     this.active = s;
                     this.currentIndex = this.queue.findIndex(i => i.id === s.id);
-                    if(ytPlayer?.loadVideoById) { 
-                        ytPlayer.loadVideoById(s.id); 
-                        this.playing = true; 
-                    }
+                    ytPlayer.loadVideoById(s.id);
+                    this.playing = true;
                     this.fetchLyrics(s);
                     setTimeout(() => this.changing = false, 400);
                 },
 
+                // ... Rest of your helper functions (fetchLyrics, syncLyrics, etc.)
                 async fetchLyrics(track) {
                     try {
                         const res = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`);
-                        if (!res.ok) return;
                         const data = await res.json();
-                        if(data && data.length) { 
-                            this.availableSources = data; 
-                            this.applySource(data[0]); 
+                        if(data.length && data[0].syncedLyrics) {
+                            this.lyrics = data[0].syncedLyrics.split('\n').map(line => {
+                                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                                return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
+                            }).filter(l => l?.text);
                         }
-                    } catch(e) { console.warn('Lyrics fetch failed'); }
-                },
-
-                applySource(source) {
-                    this.activeSourceId = source.id;
-                    if(source.syncedLyrics) {
-                        this.lyrics = source.syncedLyrics.split('\n').map(line => {
-                            const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                            return match ? { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() } : null;
-                        }).filter(l => l?.text);
-                    } else {
-                        this.lyrics = [{time: 0, text: "Lyrics not available for this source"}];
-                    }
-                    this.showSources = false;
+                    } catch(e) {}
                 },
 
                 syncLyrics() {
-                    if (!this.lyrics.length) return;
                     let index = this.lyrics.findLastIndex(l => this.currentTime >= l.time);
                     if (index !== -1 && index !== this.currentLineIndex) {
                         this.currentLineIndex = index;
-                        if(this.isSynced) {
-                            const el = document.getElementById('line-' + index);
-                            const win = document.getElementById('lyrics-window');
-                            if(el && win) win.scrollTo({ top: el.offsetTop - 150, behavior: 'smooth' });
-                        }
+                        const el = document.getElementById('line-' + index);
+                        const win = document.getElementById('lyrics-window');
+                        if(el && win) win.scrollTo({ top: el.offsetTop - 150, behavior: 'smooth' });
                     }
                 },
 
-                next() {
-                    if (this.repeatMode === 'one') { ytPlayer.seekTo(0); return; }
-                    if (this.currentIndex < this.queue.length - 1) this.play(this.queue[this.currentIndex + 1]);
-                },
-
-                prev() { if(this.currentIndex > 0) this.play(this.queue[this.currentIndex - 1]); },
-                toggleShuffle() {
-                    this.shuffle = !this.shuffle;
-                    if (this.active) {
-                        this.queue = this.shuffle ? this.shuffleArray([...this.originalQueue]) : [...this.originalQueue];
-                        this.currentIndex = this.queue.findIndex(i => i.id === this.active.id);
-                    }
-                },
-                toggleRepeat() {
-                    const modes = ['off', 'all', 'one'];
-                    this.repeatMode = modes[(modes.indexOf(this.repeatMode) + 1) % modes.length];
-                },
-                shuffleArray(a) { for(let i=a.length-1; i>0; i--){ let j=Math.floor(Math.random()*(i+1)); [a[i], a[j]]=[a[j], a[i]]; } return a; },
-                toggle() { 
-                    if (!ytPlayer) return;
-                    this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); 
-                },
-                seek(e) { 
-                    if (!ytPlayer) return;
-                    ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); 
-                }
+                next() { if (this.currentIndex < this.queue.length - 1) this.play(this.queue[this.currentIndex + 1]); },
+                prev() { if (this.currentIndex > 0) this.play(this.queue[this.currentIndex - 1]); },
+                toggle() { this.playing ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); },
+                seek(e) { ytPlayer.seekTo((e.offsetX / e.currentTarget.offsetWidth) * this.duration); },
+                shuffleArray(a) { for(let i=a.length-1; i>0; i--){ let j=Math.floor(Math.random()*(i+1)); [a[i], a[j]]=[a[j], a[i]]; } return a; }
             }
         }
     </script>
