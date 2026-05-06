@@ -190,7 +190,7 @@
             height: 2px;
             background: rgba(255,255,255,0.1);
         }
-        .progress-fill { width: 35%; height: 100%; background: #fff; border-radius: 2px; }
+        .progress-fill { width: 0%; height: 100%; background: #fff; border-radius: 2px; transition: width 0.3s; }
 
         .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
         .chip.active-chip { background: #1ed760; color: #000; }
@@ -210,6 +210,15 @@
             inset: 0;
             background: linear-gradient(to bottom, transparent 30%, rgba(18, 18, 18, 0.8) 70%, rgba(18, 18, 18, 1) 100%);
         }
+
+        /* Hidden Youtube Player Container */
+        #yt-player-container {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -217,6 +226,8 @@
     <div id="splash-screen">
         <img src="https://audifydev-del.github.io/open/assets/ic.png" alt="Logo" class="w-40 h-40">
     </div>
+
+    <div id="yt-player-container"></div>
 
     <div class="app-container">
         <div class="view-wrapper">
@@ -307,9 +318,9 @@
                     <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Select a song</p>
                 </div>
                 <div class="flex items-center gap-5 mr-1">
-                    <i class="fa-solid fa-play text-white text-xl"></i>
+                    <i id="playPauseBtn" class="fa-solid fa-play text-white text-xl cursor-pointer"></i>
                 </div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
+                <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
             </div>
             <nav class="bottom-nav">
                 <div class="nav-item active" onclick="switchTab('home', this)"><i class="fa-solid fa-house text-xl mb-1"></i><span>Home</span></div>
@@ -321,13 +332,11 @@
 
     <script>
         const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
-        
-        // --- UPDATED: Global filtration for all content ---
         const BANNED_KEYWORDS = ['bollywood', 't-series', 'tseries', 'remix', 'hindi', 'punjabi', 'mashup', 'cover', 'lofi remix'];
+        let currentVideoId = null;
 
         function isClean(song) {
             const textToScan = `${song.title} ${song.artist}`.toLowerCase();
-            // Returns true only if the song is an "original topic" track
             return !BANNED_KEYWORDS.some(word => textToScan.includes(word));
         }
 
@@ -335,7 +344,6 @@
             try {
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
-                // Apply global filter to strip out unwanted content
                 return data.filter(isClean);
             } catch (err) {
                 console.error("API Error:", err);
@@ -343,10 +351,46 @@
             }
         }
 
-        function playSong(title, artist, thumb) {
+        // --- UPDATED: Play song with YouTube Embed ---
+        function playSong(title, artist, thumb, videoId) {
             document.getElementById('playerTitle').innerText = title;
             document.getElementById('playerArtist').innerText = artist;
             document.getElementById('playerThumb').src = thumb || fallbackThumb;
+            
+            if (videoId) {
+                currentVideoId = videoId;
+                // Create/Update the embed
+                const playerContainer = document.getElementById('yt-player-container');
+                playerContainer.innerHTML = `
+                    <iframe 
+                        width="1" 
+                        height="1" 
+                        src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" 
+                        frameborder="0" 
+                        allow="autoplay">
+                    </iframe>`;
+                
+                // Change UI to pause icon
+                document.getElementById('playPauseBtn').classList.replace('fa-play', 'fa-pause');
+                
+                // Reset progress bar
+                document.getElementById('progressFill').style.width = '0%';
+                
+                // Simulate progress (since iframe API interaction is limited without complex SDK)
+                let progress = 0;
+                const interval = setInterval(() => {
+                    if (currentVideoId !== videoId) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    progress += 0.5;
+                    if (progress <= 100) {
+                        document.getElementById('progressFill').style.width = progress + '%';
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 1000);
+            }
         }
 
         async function loadHomeSections() {
@@ -354,18 +398,18 @@
                 fetchSongs("top global hits 2026"),
                 fetchSongs("original audio tracks"),
                 fetchSongs("top global artists 2026"),
-                fetchSongs("trending worldwide") // Updated query for general topics
+                fetchSongs("trending worldwide")
             ]);
 
             document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
-                <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
                     <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
                     <span>${s.title}</span>
                 </div>
             `).join('');
 
             document.getElementById('topMixesScroll').innerHTML = mixes.slice(0, 5).map(s => `
-                <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
                     <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
                     <p class="text-[11px] font-bold truncate">${s.title}</p>
                     <p class="text-[10px] text-gray-400 truncate">Official Release</p>
@@ -379,7 +423,6 @@
                 </div>
             `).join('');
 
-            // Render Trending Now with the filtered, original topic tracks
             renderList('recentList', trending.slice(0, 8));
         }
 
@@ -402,7 +445,7 @@
         function renderList(targetId, songs) {
             const container = document.getElementById(targetId);
             container.innerHTML = songs.map(s => `
-                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
                     <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
                     <div class="flex-1 overflow-hidden">
                         <p class="text-base font-bold truncate">${s.title}</p>
