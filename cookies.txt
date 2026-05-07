@@ -1,0 +1,11 @@
+# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file! Do not edit.
+
+.youtube.com	TRUE	/	TRUE	1778185828	GPS	1
+.youtube.com	TRUE	/	TRUE	1812744042	PREF	f6=40000000&tz=America.Los_Angeles
+.youtube.com	TRUE	/	TRUE	1793736028	__Secure-YNID	18.YT=BOfuC5ERtfpVZ7-AUoHaDJNUk_Wu-OPmpKrlPkbqTFocCTR3Y4IcxKVlHjGX_EaOEIvUsHKvciJeHMq4J8PfaJfLz8Q9yTUWurL1CSzn9RIV73Xc21BKJ3XUaHDTIJpy3CnWMIbQvOeofUxJb8_T5i7saqWVxPbMgN_avg4cELLAV9YE04pv2lic27YPiByGELj1GrkLsINCNgtJTMGjBREzS3SYLBt6m2-cOIvJiVPLPgZKSh-uEhbeyHLHdNTjS0mS8RUyQf76K0_WxdCWV-KajaEac2XF7ZAtFFQXu6lRXBoDXz5aS6n4WYHPI3aeU86gXzMpulPnsC3GEUiMLw
+.youtube.com	TRUE	/	TRUE	0	YSC	l4zuITcuq8w
+.youtube.com	TRUE	/	TRUE	1793736042	VISITOR_INFO1_LIVE	1GAzdrjVr6c
+.youtube.com	TRUE	/	TRUE	1793736042	VISITOR_PRIVACY_METADATA	CgJQSBIEGgAgTg%3D%3D
+.youtube.com	TRUE	/	TRUE	1793736034	__Secure-ROLLOUT_TOKEN	CKeQpsW0zYSMcBCo4JfHsqaUAxiat5HKsqaUAw%3D%3D
