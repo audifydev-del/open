@@ -210,15 +210,6 @@
             inset: 0;
             background: linear-gradient(to bottom, transparent 30%, rgba(18, 18, 18, 0.8) 70%, rgba(18, 18, 18, 1) 100%);
         }
-
-        /* Hidden Youtube Player Container */
-        #yt-player-container {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
@@ -227,7 +218,8 @@
         <img src="https://audifydev-del.github.io/open/assets/ic.png" alt="Logo" class="w-40 h-40">
     </div>
 
-    <div id="yt-player-container"></div>
+    <!-- NATIVE AUDIO PLAYER (REPLACED IFRAME) -->
+    <audio id="main-audio-player" style="display:none;"></audio>
 
     <div class="app-container">
         <div class="view-wrapper">
@@ -333,6 +325,9 @@
     <script>
         const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
         const BANNED_KEYWORDS = ['bollywood', 't-series', 'tseries', 'remix', 'hindi', 'punjabi', 'mashup', 'cover', 'lofi remix'];
+        
+        // REPLACED IFRAME LOGIC WITH NATIVE AUDIO OBJECT
+        const audioPlayer = document.getElementById('main-audio-player');
         let currentVideoId = null;
 
         function isClean(song) {
@@ -351,47 +346,59 @@
             }
         }
 
-        // --- UPDATED: Play song with YouTube Embed ---
-        function playSong(title, artist, thumb, videoId) {
+        // --- UPDATED: Direct Audio Streaming Function ---
+        async function playSong(title, artist, thumb, videoId) {
+            if (!videoId) return;
+
+            // Update UI
             document.getElementById('playerTitle').innerText = title;
             document.getElementById('playerArtist').innerText = artist;
             document.getElementById('playerThumb').src = thumb || fallbackThumb;
             
-            if (videoId) {
-                currentVideoId = videoId;
-                // Create/Update the embed
-                const playerContainer = document.getElementById('yt-player-container');
-                playerContainer.innerHTML = `
-                    <iframe 
-                        width="1" 
-                        height="1" 
-                        src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" 
-                        frameborder="0" 
-                        allow="autoplay">
-                    </iframe>`;
+            // Show Loading state on the play button
+            const playBtn = document.getElementById('playPauseBtn');
+            playBtn.className = "fa-solid fa-spinner fa-spin text-white text-xl cursor-pointer";
+
+            try {
+                // Get the direct audio URL from your Python backend
+                const response = await fetch(`/get_audio/${videoId}`);
+                const data = await response.json();
                 
-                // Change UI to pause icon
-                document.getElementById('playPauseBtn').classList.replace('fa-play', 'fa-pause');
-                
-                // Reset progress bar
-                document.getElementById('progressFill').style.width = '0%';
-                
-                // Simulate progress (since iframe API interaction is limited without complex SDK)
-                let progress = 0;
-                const interval = setInterval(() => {
-                    if (currentVideoId !== videoId) {
-                        clearInterval(interval);
-                        return;
-                    }
-                    progress += 0.5;
-                    if (progress <= 100) {
-                        document.getElementById('progressFill').style.width = progress + '%';
-                    } else {
-                        clearInterval(interval);
-                    }
-                }, 1000);
+                if (data.url) {
+                    currentVideoId = videoId;
+                    audioPlayer.src = data.url;
+                    audioPlayer.play();
+                    
+                    // Update Button to Pause
+                    playBtn.className = "fa-solid fa-pause text-white text-xl cursor-pointer";
+                }
+            } catch (err) {
+                console.error("Playback error:", err);
+                playBtn.className = "fa-solid fa-play text-white text-xl cursor-pointer";
             }
         }
+
+        // Native Progress Bar Logic
+        audioPlayer.ontimeupdate = () => {
+            if (audioPlayer.duration) {
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+            }
+        };
+
+        // Play/Pause Button Logic
+        document.getElementById('playPauseBtn').onclick = () => {
+            if (!audioPlayer.src) return;
+            
+            const playBtn = document.getElementById('playPauseBtn');
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playBtn.classList.replace('fa-play', 'fa-pause');
+            } else {
+                audioPlayer.pause();
+                playBtn.classList.replace('fa-pause', 'fa-play');
+            }
+        };
 
         async function loadHomeSections() {
             const [hits, mixes, artists, trending] = await Promise.all([
