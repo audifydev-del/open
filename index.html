@@ -70,21 +70,14 @@
 
         .view::-webkit-scrollbar { display: none; }
 
-        /* Full Player View Slide Animation */
-        #full-player {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, #444 0%, #121212 100%);
-            z-index: 200;
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
+        @keyframes songPop {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        #full-player.open {
-            transform: translateY(0);
+        .animate-song {
+            animation: songPop 0.4s ease forwards;
+            opacity: 0;
         }
 
         .home-gradient {
@@ -109,7 +102,7 @@
             display: flex;
             align-items: center;
             padding: 0 12px;
-            cursor: pointer;
+            position: relative;
         }
 
         .bottom-nav {
@@ -127,6 +120,7 @@
             font-size: 10px;
             color: #b3b3b3;
             cursor: pointer;
+            transition: color 0.2s;
         }
 
         .nav-item.active { color: #fff; }
@@ -147,6 +141,7 @@
             overflow: hidden;
             font-size: 11px;
             font-weight: bold;
+            cursor: pointer;
         }
         .shortcut-card img { height: 100%; width: 56px; object-fit: cover; margin-right: 8px; }
 
@@ -156,6 +151,25 @@
             overflow-x: auto;
             padding: 0 16px 20px 16px;
         }
+        .album-scroll::-webkit-scrollbar { display: none; }
+
+        .album-item { min-width: 145px; cursor: pointer; }
+        .album-item img {
+            width: 145px;
+            height: 145px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            object-fit: cover;
+        }
+
+        .artist-item { min-width: 110px; text-align: center; cursor: pointer; }
+        .artist-item img {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+            object-fit: cover;
+        }
 
         .song-list-item {
             display: flex;
@@ -164,6 +178,9 @@
             padding: 8px 16px;
             cursor: pointer;
         }
+        .song-list-item:active { background: rgba(255,255,255,0.1); }
+
+        .thumb-sm { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
 
         .progress-bar {
             position: absolute;
@@ -173,8 +190,28 @@
             height: 2px;
             background: rgba(255,255,255,0.1);
         }
-        .progress-fill { width: 0%; height: 100%; background: #fff; border-radius: 2px; }
+        .progress-fill { width: 0%; height: 100%; background: #fff; border-radius: 2px; transition: width 0.3s; }
 
+        .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
+        .chip.active-chip { background: #1ed760; color: #000; }
+        
+        .artist-banner {
+            height: 350px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 20px;
+        }
+        .artist-banner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 30%, rgba(18, 18, 18, 0.8) 70%, rgba(18, 18, 18, 1) 100%);
+        }
+
+        /* Hidden Youtube Player Container */
         #yt-player-container {
             position: absolute;
             width: 1px;
@@ -193,43 +230,6 @@
     <div id="yt-player-container"></div>
 
     <div class="app-container">
-        <!-- FULL PLAYER VIEW -->
-        <div id="full-player">
-            <div class="flex justify-between items-center mb-10">
-                <button onclick="toggleFullPlayer(false)" class="text-2xl"><i class="fa-solid fa-chevron-down"></i></button>
-                <p class="text-[10px] font-bold tracking-widest uppercase">Playing from your library</p>
-                <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
-            </div>
-            
-            <img id="mainPlayerThumb" src="" class="w-full aspect-square rounded-lg shadow-2xl mb-12 object-cover">
-            
-            <div class="flex justify-between items-end mb-8">
-                <div>
-                    <h2 id="mainPlayerTitle" class="text-2xl font-bold mb-1 truncate max-w-[280px]">Song Title</h2>
-                    <p id="mainPlayerArtist" class="text-gray-400 text-lg">Artist Name</p>
-                </div>
-                <i class="fa-regular fa-heart text-2xl"></i>
-            </div>
-
-            <div class="w-full bg-white/20 h-1 rounded-full mb-2">
-                <div id="fullProgressFill" class="bg-white h-full rounded-full" style="width: 0%"></div>
-            </div>
-            <div class="flex justify-between text-[10px] text-gray-400 mb-8">
-                <span>0:00</span>
-                <span>3:45</span>
-            </div>
-
-            <div class="flex justify-between items-center px-4">
-                <i class="fa-solid fa-shuffle text-xl text-gray-400"></i>
-                <i class="fa-solid fa-backward-step text-3xl"></i>
-                <div class="bg-white text-black w-16 h-16 rounded-full flex items-center justify-center">
-                    <i class="fa-solid fa-play text-2xl"></i>
-                </div>
-                <i class="fa-solid fa-forward-step text-3xl"></i>
-                <i class="fa-solid fa-repeat text-xl text-gray-400"></i>
-            </div>
-        </div>
-
         <div class="view-wrapper">
             <!-- HOME VIEW -->
             <div id="home" class="view active home-gradient">
@@ -237,10 +237,23 @@
                     <h1 class="text-2xl font-bold">Good evening</h1>
                     <div class="flex gap-5 text-xl">
                         <i class="fa-regular fa-bell"></i>
+                        <i class="fa-solid fa-clock-rotate-left"></i>
                         <i class="fa-solid fa-gear"></i>
                     </div>
                 </header>
+
                 <div id="shortcutGrid" class="shortcut-grid"></div>
+
+                <div class="mt-4">
+                    <h2 class="text-xl font-bold px-4 mb-4">Your top mixes</h2>
+                    <div id="topMixesScroll" class="album-scroll"></div>
+                </div>
+
+                <div class="mt-6">
+                    <h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2>
+                    <div id="popularArtistsScroll" class="album-scroll"></div>
+                </div>
+
                 <div class="mt-6">
                     <h2 class="text-xl font-bold px-4 mb-4">Trending Now</h2>
                     <div id="recentList" class="flex flex-col"></div>
@@ -251,40 +264,80 @@
             <div id="search" class="view bg-black">
                 <header class="p-4 pt-10">
                     <h1 class="text-2xl font-bold mb-4">Search</h1>
-                    <div class="bg-white text-black p-3 rounded font-bold flex items-center gap-3">
+                    <div class="bg-white text-black p-3 rounded font-bold flex items-center gap-3 mb-6">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="mainSearch" placeholder="Search songs..." class="w-full outline-none bg-transparent">
+                        <input type="text" id="mainSearch" placeholder="What do you want to listen to?" class="w-full outline-none bg-transparent">
                     </div>
-                    <div id="searchRecs" class="mt-4"></div>
+                    
+                    <div id="searchDefault">
+                        <h2 class="text-lg font-bold mb-4">Browse all</h2>
+                        <div class="grid grid-cols-2 gap-3 mb-8">
+                            <div class="h-24 bg-pink-600 rounded p-3 font-bold">Pop</div>
+                            <div class="h-24 bg-purple-700 rounded p-3 font-bold">Dance</div>
+                            <div class="h-24 bg-blue-600 rounded p-3 font-bold">Rock</div>
+                            <div class="h-24 bg-orange-600 rounded p-3 font-bold">Hip Hop</div>
+                        </div>
+                        
+                        <h2 class="text-lg font-bold mb-4">Recommended for you</h2>
+                        <div id="searchRecommendedList" class="flex flex-col gap-1 pb-10"></div>
+                    </div>
+
+                    <div id="searchRecs" class="flex flex-col gap-1 pb-10"></div>
                 </header>
+            </div>
+
+            <!-- LIBRARY VIEW -->
+            <div id="library" class="view bg-black">
+                <header class="p-4 pt-10 sticky top-0 bg-black z-20">
+                    <h1 class="text-2xl font-bold mb-4">Your Library</h1>
+                    <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        <div class="chip active-chip">All</div>
+                        <div class="chip">Playlists</div>
+                        <div class="chip">Artists</div>
+                    </div>
+                </header>
+                <div id="libraryList" class="flex flex-col gap-1 pb-40"></div>
+            </div>
+
+            <!-- ARTIST PROFILE VIEW -->
+            <div id="artist-profile" class="view bg-[#121212]">
+                <div id="artistBanner" class="artist-banner">
+                    <button onclick="switchTab('home', document.querySelector('.nav-item'))" class="absolute top-10 left-4 z-20 bg-black/40 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h1 id="artistNameDisplay" class="text-5xl font-black z-10">Artist</h1>
+                </div>
+                <div id="artistSongs" class="flex flex-col gap-1 p-2 bg-[#121212]"></div>
             </div>
         </div>
 
-        <!-- MINI PLAYER & NAV -->
+        <!-- FIXED UI -->
         <div class="ui-fixed-bottom">
-            <div class="mini-player" onclick="toggleFullPlayer(true)">
-                <img id="playerThumb" src="" class="w-10 h-10 rounded">
+            <div class="mini-player">
+                <img id="playerThumb" src="https://audifydev-del.github.io/open/assets/ic.png" class="w-10 h-10 rounded">
                 <div class="flex-1 ml-3 overflow-hidden">
                     <p id="playerTitle" class="text-xs font-bold truncate">Not playing</p>
                     <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Select a song</p>
                 </div>
-                <i class="fa-solid fa-play text-white text-xl mr-2"></i>
+                <div class="flex items-center gap-5 mr-1">
+                    <i id="playPauseBtn" class="fa-solid fa-play text-white text-xl cursor-pointer"></i>
+                </div>
                 <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
             </div>
             <nav class="bottom-nav">
                 <div class="nav-item active" onclick="switchTab('home', this)"><i class="fa-solid fa-house text-xl mb-1"></i><span>Home</span></div>
                 <div class="nav-item" onclick="switchTab('search', this)"><i class="fa-solid fa-magnifying-glass text-xl mb-1"></i><span>Search</span></div>
+                <div class="nav-item" onclick="switchTab('library', this)"><i class="fa-solid fa-lines-leaning text-xl mb-1"></i><span>Your Library</span></div>
             </nav>
         </div>
     </div>
 
     <script>
         const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
-        const BANNED_KEYWORDS = ['bollywood', 't-series', 'remix', 'hindi', 'mashup', 'cover'];
+        const BANNED_KEYWORDS = ['bollywood', 't-series', 'tseries', 'remix', 'hindi', 'punjabi', 'mashup', 'cover', 'lofi remix'];
+        let currentVideoId = null;
 
         function isClean(song) {
-            const text = `${song.title} ${song.artist}`.toLowerCase();
-            return !BANNED_KEYWORDS.some(word => text.includes(word));
+            const textToScan = `${song.title} ${song.artist}`.toLowerCase();
+            return !BANNED_KEYWORDS.some(word => textToScan.includes(word));
         }
 
         async function fetchSongs(query) {
@@ -292,69 +345,142 @@
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
                 return data.filter(isClean);
-            } catch (err) { return []; }
+            } catch (err) {
+                console.error("API Error:", err);
+                return [];
+            }
         }
 
-        function toggleFullPlayer(show) {
-            const player = document.getElementById('full-player');
-            if (show) player.classList.add('open');
-            else player.classList.remove('open');
-        }
-
+        // --- UPDATED: Play song with YouTube Embed ---
         function playSong(title, artist, thumb, videoId) {
-            // Update Mini Player
             document.getElementById('playerTitle').innerText = title;
             document.getElementById('playerArtist').innerText = artist;
             document.getElementById('playerThumb').src = thumb || fallbackThumb;
             
-            // Update Full Player
-            document.getElementById('mainPlayerTitle').innerText = title;
-            document.getElementById('mainPlayerArtist').innerText = artist;
-            document.getElementById('mainPlayerThumb').src = thumb || fallbackThumb;
-
             if (videoId) {
-                document.getElementById('yt-player-container').innerHTML = `
-                    <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay"></iframe>`;
+                currentVideoId = videoId;
+                // Create/Update the embed
+                const playerContainer = document.getElementById('yt-player-container');
+                playerContainer.innerHTML = `
+                    <iframe 
+                        width="1" 
+                        height="1" 
+                        src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" 
+                        frameborder="0" 
+                        allow="autoplay">
+                    </iframe>`;
                 
-                // Automatically open the player
-                toggleFullPlayer(true);
+                // Change UI to pause icon
+                document.getElementById('playPauseBtn').classList.replace('fa-play', 'fa-pause');
                 
-                // Progress Simulation
-                let p = 0;
+                // Reset progress bar
+                document.getElementById('progressFill').style.width = '0%';
+                
+                // Simulate progress (since iframe API interaction is limited without complex SDK)
+                let progress = 0;
                 const interval = setInterval(() => {
-                    p += 1;
-                    if(p > 100) clearInterval(interval);
-                    document.getElementById('progressFill').style.width = p + '%';
-                    document.getElementById('fullProgressFill').style.width = p + '%';
+                    if (currentVideoId !== videoId) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    progress += 0.5;
+                    if (progress <= 100) {
+                        document.getElementById('progressFill').style.width = progress + '%';
+                    } else {
+                        clearInterval(interval);
+                    }
                 }, 1000);
             }
         }
 
-        async function loadHome() {
-            const trending = await fetchSongs("top hits 2026");
-            const hits = await fetchSongs("popular tracks");
-            
-            document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
-                <div class="shortcut-card" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
-                    <img src="${s.thumbnail}"><span>${s.title}</span>
-                </div>`).join('');
+        async function loadHomeSections() {
+            const [hits, mixes, artists, trending] = await Promise.all([
+                fetchSongs("top global hits 2026"),
+                fetchSongs("original audio tracks"),
+                fetchSongs("top global artists 2026"),
+                fetchSongs("trending worldwide")
+            ]);
 
-            document.getElementById('recentList').innerHTML = trending.slice(0, 8).map(s => `
-                <div class="song-list-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
-                    <img src="${s.thumbnail}" class="w-12 h-12 rounded">
-                    <div class="flex-1 overflow-hidden"><p class="font-bold truncate">${s.title}</p><p class="text-xs text-gray-400">${s.artist}</p></div>
-                </div>`).join('');
+            document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
+                <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <span>${s.title}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('topMixesScroll').innerHTML = mixes.slice(0, 5).map(s => `
+                <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-[11px] font-bold truncate">${s.title}</p>
+                    <p class="text-[10px] text-gray-400 truncate">Official Release</p>
+                </div>
+            `).join('');
+
+            document.getElementById('popularArtistsScroll').innerHTML = artists.slice(0, 6).map(s => `
+                <div class="artist-item" onclick="openArtistProfile('${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-xs font-bold truncate">${s.artist}</p>
+                </div>
+            `).join('');
+
+            renderList('recentList', trending.slice(0, 8));
+        }
+
+        async function loadSearchRecommendations() {
+            const recs = await fetchSongs("trending original music");
+            renderList('searchRecommendedList', recs.slice(0, 10));
+        }
+
+        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (!query) return;
+                document.getElementById('searchDefault').style.display = 'none';
+                document.getElementById('searchRecs').innerHTML = '<p class="p-4 text-gray-400">Searching...</p>';
+                const results = await fetchSongs(query);
+                renderList('searchRecs', results);
+            }
+        });
+
+        function renderList(targetId, songs) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = songs.map(s => `
+                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-base font-bold truncate">${s.title}</p>
+                        <p class="text-xs text-gray-400">${s.artist}</p>
+                    </div>
+                    <i class="fa-solid fa-ellipsis-vertical text-gray-400"></i>
+                </div>
+            `).join('');
+        }
+
+        async function openArtistProfile(name, thumb) {
+            document.getElementById('artistNameDisplay').innerText = name;
+            document.getElementById('artistBanner').style.backgroundImage = `url(${thumb})`;
+            switchTab('artist-profile');
+            const results = await fetchSongs(name + " official tracks");
+            renderList('artistSongs', results);
         }
 
         function switchTab(tabId, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
+            if(el) {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                el.classList.add('active');
+                if(tabId === 'search') {
+                    document.getElementById('searchDefault').style.display = 'block';
+                    document.getElementById('searchRecs').innerHTML = '';
+                    document.getElementById('mainSearch').value = '';
+                }
+            }
         }
 
         window.onload = () => {
-            loadHome();
+            loadHomeSections();
+            loadSearchRecommendations();
             setTimeout(() => {
                 document.getElementById('splash-screen').style.opacity = '0';
                 setTimeout(() => document.getElementById('splash-screen').remove(), 500);
