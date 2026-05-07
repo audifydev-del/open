@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audify Mobile</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600;700;800&display=swap');
+
         body {
             background-color: #000;
             color: #fff;
@@ -19,100 +21,462 @@
             overflow: hidden;
         }
 
-        /* Spinner Animation */
-        .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #fff;
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100%;
+            background-color: #000;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .view-wrapper {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .view {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            overflow-y: auto;
+            padding-bottom: 180px; 
+        }
+
+        .view.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+            z-index: 10;
+        }
+
+        .view::-webkit-scrollbar { display: none; }
+
+        @keyframes songPop {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-song {
+            animation: songPop 0.4s ease forwards;
+            opacity: 0;
+        }
+
+        .home-gradient {
+            background: linear-gradient(to bottom, #2a2a2a 0%, #121212 25%, #121212 100%);
+        }
+
+        .ui-fixed-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: linear-gradient(to top, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .mini-player {
+            background: #282828;
+            margin: 0 8px 8px 8px;
+            height: 56px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            position: relative;
+        }
+
+        .bottom-nav {
+            height: 70px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
+            color: #b3b3b3;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .nav-item.active { color: #fff; }
+
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 16px;
+        }
+
+        .shortcut-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .shortcut-card img { height: 100%; width: 56px; object-fit: cover; margin-right: 8px; }
+
+        .album-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 0 16px 20px 16px;
+        }
+        .album-scroll::-webkit-scrollbar { display: none; }
+
+        .album-item { min-width: 145px; cursor: pointer; }
+        .album-item img {
+            width: 145px;
+            height: 145px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            object-fit: cover;
+        }
+
+        .artist-item { min-width: 110px; text-align: center; cursor: pointer; }
+        .artist-item img {
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+            margin-bottom: 8px;
+            object-fit: cover;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .song-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            cursor: pointer;
         }
+        .song-list-item:active { background: rgba(255,255,255,0.1); }
 
-        .hidden { display: none; }
+        .thumb-sm { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 12px;
+            right: 12px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+        }
+        .progress-fill { width: 0%; height: 100%; background: #fff; border-radius: 2px; transition: width 0.3s; }
+
+        .chip { background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; transition: 0.2s; }
+        .chip.active-chip { background: #1ed760; color: #000; }
+        
+        .artist-banner {
+            height: 350px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 20px;
+        }
+        .artist-banner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 30%, rgba(18, 18, 18, 0.8) 70%, rgba(18, 18, 18, 1) 100%);
+        }
     </style>
 </head>
 <body>
 
-    <div class="w-full max-w-md p-6">
-        <h1 class="text-2xl font-bold mb-6">Good evening</h1>
-        
-        <div onclick="playSong('kIFt-LUHHVA', 'Espresso', 'Sabrina Carpenter')" class="bg-zinc-900 p-4 rounded-lg flex items-center cursor-pointer hover:bg-zinc-800 transition">
-            <img src="https://img.youtube.com/vi/kIFt-LUHHVA/mqdefault.jpg" class="w-12 h-12 rounded mr-4">
-            <div>
-                <p class="font-semibold">Espresso</p>
-                <p class="text-sm text-zinc-400">Sabrina Carpenter</p>
+    <div id="splash-screen">
+        <img src="https://audifydev-del.github.io/open/assets/ic.png" alt="Logo" class="w-40 h-40">
+    </div>
+
+    <audio id="main-audio-player" style="display:none;"></audio>
+
+    <div class="app-container">
+        <div class="view-wrapper">
+            <div id="home" class="view active home-gradient">
+                <header class="p-4 pt-10 flex justify-between items-center">
+                    <h1 class="text-2xl font-bold">Good evening</h1>
+                    <div class="flex gap-5 text-xl">
+                        <i class="fa-regular fa-bell"></i>
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <i class="fa-solid fa-gear"></i>
+                    </div>
+                </header>
+
+                <div id="shortcutGrid" class="shortcut-grid"></div>
+
+                <div class="mt-4">
+                    <h2 class="text-xl font-bold px-4 mb-4">Your top mixes</h2>
+                    <div id="topMixesScroll" class="album-scroll"></div>
+                </div>
+
+                <div class="mt-6">
+                    <h2 class="text-xl font-bold px-4 mb-4">Popular Artists</h2>
+                    <div id="popularArtistsScroll" class="album-scroll"></div>
+                </div>
+
+                <div class="mt-6">
+                    <h2 class="text-xl font-bold px-4 mb-4">Trending Now</h2>
+                    <div id="recentList" class="flex flex-col"></div>
+                </div>
+            </div>
+
+            <div id="search" class="view bg-black">
+                <header class="p-4 pt-10">
+                    <h1 class="text-2xl font-bold mb-4">Search</h1>
+                    <div class="bg-white text-black p-3 rounded font-bold flex items-center gap-3 mb-6">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="mainSearch" placeholder="What do you want to listen to?" class="w-full outline-none bg-transparent">
+                    </div>
+                    
+                    <div id="searchDefault">
+                        <h2 class="text-lg font-bold mb-4">Browse all</h2>
+                        <div class="grid grid-cols-2 gap-3 mb-8">
+                            <div class="h-24 bg-pink-600 rounded p-3 font-bold">Pop</div>
+                            <div class="h-24 bg-purple-700 rounded p-3 font-bold">Dance</div>
+                            <div class="h-24 bg-blue-600 rounded p-3 font-bold">Rock</div>
+                            <div class="h-24 bg-orange-600 rounded p-3 font-bold">Hip Hop</div>
+                        </div>
+                        
+                        <h2 class="text-lg font-bold mb-4">Recommended for you</h2>
+                        <div id="searchRecommendedList" class="flex flex-col gap-1 pb-10"></div>
+                    </div>
+
+                    <div id="searchRecs" class="flex flex-col gap-1 pb-10"></div>
+                </header>
+            </div>
+
+            <div id="library" class="view bg-black">
+                <header class="p-4 pt-10 sticky top-0 bg-black z-20">
+                    <h1 class="text-2xl font-bold mb-4">Your Library</h1>
+                    <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        <div class="chip active-chip">All</div>
+                        <div class="chip">Playlists</div>
+                        <div class="chip">Artists</div>
+                    </div>
+                </header>
+                <div id="libraryList" class="flex flex-col gap-1 pb-40"></div>
+            </div>
+
+            <div id="artist-profile" class="view bg-[#121212]">
+                <div id="artistBanner" class="artist-banner">
+                    <button onclick="switchTab('home', document.querySelector('.nav-item'))" class="absolute top-10 left-4 z-20 bg-black/40 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h1 id="artistNameDisplay" class="text-5xl font-black z-10">Artist</h1>
+                </div>
+                <div id="artistSongs" class="flex flex-col gap-1 p-2 bg-[#121212]"></div>
             </div>
         </div>
 
-        <div id="player-bar" class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-zinc-800 p-3 rounded-xl flex items-center justify-between">
-            <div class="flex items-center">
-                <div id="player-loading" class="spinner mr-3 hidden"></div>
-                <div>
-                    <p id="current-title" class="font-bold text-sm">Not Playing</p>
-                    <p id="current-artist" class="text-xs text-zinc-400">Select a song</p>
+        <div class="ui-fixed-bottom">
+            <div class="mini-player">
+                <img id="playerThumb" src="https://audifydev-del.github.io/open/assets/ic.png" class="w-10 h-10 rounded">
+                <div class="flex-1 ml-3 overflow-hidden">
+                    <p id="playerTitle" class="text-xs font-bold truncate">Not playing</p>
+                    <p id="playerArtist" class="text-[10px] text-gray-400 truncate">Select a song</p>
                 </div>
+                <div class="flex items-center gap-5 mr-1">
+                    <i id="playPauseBtn" class="fa-solid fa-play text-white text-xl cursor-pointer"></i>
+                </div>
+                <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
             </div>
-            <button id="play-btn" class="text-xl">▶</button>
+            <nav class="bottom-nav">
+                <div class="nav-item active" onclick="switchTab('home', this)"><i class="fa-solid fa-house text-xl mb-1"></i><span>Home</span></div>
+                <div class="nav-item" onclick="switchTab('search', this)"><i class="fa-solid fa-magnifying-glass text-xl mb-1"></i><span>Search</span></div>
+                <div class="nav-item" onclick="switchTab('library', this)"><i class="fa-solid fa-lines-leaning text-xl mb-1"></i><span>Your Library</span></div>
+            </nav>
         </div>
     </div>
 
-    <audio id="main-audio"></audio>
-
     <script>
-        const audio = document.getElementById('main-audio');
-        const loadingSpinner = document.getElementById('player-loading');
-        const playBtn = document.getElementById('play-btn');
-        const titleDisplay = document.getElementById('current-title');
-        const artistDisplay = document.getElementById('current-artist');
+        const fallbackThumb = "https://audifydev-del.github.io/open/assets/ic.png";
+        const BANNED_KEYWORDS = ['bollywood', 't-series', 'tseries', 'remix', 'hindi', 'punjabi', 'mashup', 'cover', 'lofi remix'];
+        
+        const audioPlayer = document.getElementById('main-audio-player');
+        let currentVideoId = null;
 
-        // Replace this with your actual Render URL if it changes
-        const BACKEND_URL = "https://open-je44.onrender.com";
+        function isClean(song) {
+            const textToScan = `${song.title} ${song.artist}`.toLowerCase();
+            return !BANNED_KEYWORDS.some(word => textToScan.includes(word));
+        }
 
-        async function playSong(videoId, title, artist) {
-            // 1. UI Feedback: Show loading
-            loadingSpinner.classList.remove('hidden');
-            titleDisplay.innerText = title;
-            artistDisplay.innerText = artist;
-            
+        async function fetchSongs(query) {
             try {
-                // 2. Fetch from your Python Backend
-                const response = await fetch(`${BACKEND_URL}/get_audio/${videoId}`);
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
-
-                if (data.status === "success" && data.url) {
-                    // 3. Set audio source and play
-                    audio.src = data.url;
-                    audio.play();
-                } else {
-                    alert("Error fetching audio: " + (data.message || "Unknown error"));
-                }
-            } catch (error) {
-                console.error("Fetch failed:", error);
-                alert("Backend server is currently down or waking up. Please wait.");
+                return data.filter(isClean);
+            } catch (err) {
+                console.error("API Error:", err);
+                return [];
             }
         }
 
-        // Hide spinner when audio actually starts playing
-        audio.onplaying = () => {
-            loadingSpinner.classList.add('hidden');
-            playBtn.innerText = "⏸";
+        async function playSong(title, artist, thumb, videoId) {
+            if (!videoId) return;
+
+            document.getElementById('playerTitle').innerText = title;
+            document.getElementById('playerArtist').innerText = artist;
+            document.getElementById('playerThumb').src = thumb || fallbackThumb;
+            
+            const playBtn = document.getElementById('playPauseBtn');
+            playBtn.className = "fa-solid fa-circle-notch fa-spin text-white text-xl cursor-pointer";
+
+            try {
+                // Call your Python backend route
+                const response = await fetch(`/get_audio/${videoId}`);
+                const data = await response.json();
+                
+                if (data.url) {
+                    currentVideoId = videoId;
+                    audioPlayer.src = data.url;
+                    audioPlayer.play();
+                    playBtn.className = "fa-solid fa-pause text-white text-xl cursor-pointer";
+                }
+            } catch (err) {
+                console.error("Playback error:", err);
+                playBtn.className = "fa-solid fa-play text-white text-xl cursor-pointer";
+            }
+        }
+
+        audioPlayer.ontimeupdate = () => {
+            if (audioPlayer.duration) {
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+            }
         };
 
-        // Handle Play/Pause button
-        playBtn.onclick = () => {
-            if (audio.paused) {
-                audio.play();
-                playBtn.innerText = "⏸";
+        document.getElementById('playPauseBtn').onclick = () => {
+            if (!audioPlayer.src) return;
+            const playBtn = document.getElementById('playPauseBtn');
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playBtn.classList.replace('fa-play', 'fa-pause');
             } else {
-                audio.pause();
-                playBtn.innerText = "▶";
+                audioPlayer.pause();
+                playBtn.classList.replace('fa-pause', 'fa-play');
             }
+        };
+
+        async function loadHomeSections() {
+            const [hits, mixes, artists, trending] = await Promise.all([
+                fetchSongs("top global hits 2026"),
+                fetchSongs("original audio tracks"),
+                fetchSongs("top global artists 2026"),
+                fetchSongs("trending worldwide")
+            ]);
+
+            document.getElementById('shortcutGrid').innerHTML = hits.slice(0, 6).map(s => `
+                <div class="shortcut-card animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <span>${s.title}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('topMixesScroll').innerHTML = mixes.slice(0, 5).map(s => `
+                <div class="album-item" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-[11px] font-bold truncate">${s.title}</p>
+                    <p class="text-[10px] text-gray-400 truncate">Official Release</p>
+                </div>
+            `).join('');
+
+            document.getElementById('popularArtistsScroll').innerHTML = artists.slice(0, 6).map(s => `
+                <div class="artist-item" onclick="openArtistProfile('${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}')">
+                    <img src="${s.thumbnail}" onerror="this.src='${fallbackThumb}'">
+                    <p class="text-xs font-bold truncate">${s.artist}</p>
+                </div>
+            `).join('');
+
+            renderList('recentList', trending.slice(0, 8));
+        }
+
+        async function loadSearchRecommendations() {
+            const recs = await fetchSongs("trending original music");
+            renderList('searchRecommendedList', recs.slice(0, 10));
+        }
+
+        document.getElementById('mainSearch').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (!query) return;
+                document.getElementById('searchDefault').style.display = 'none';
+                document.getElementById('searchRecs').innerHTML = '<p class="p-4 text-gray-400 text-center"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching...</p>';
+                const results = await fetchSongs(query);
+                renderList('searchRecs', results);
+            }
+        });
+
+        function renderList(targetId, songs) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = songs.map(s => `
+                <div class="song-list-item animate-song" onclick="playSong('${s.title.replace(/'/g, "\\'")}', '${s.artist.replace(/'/g, "\\'")}', '${s.thumbnail}', '${s.videoId}')">
+                    <img src="${s.thumbnail}" class="thumb-sm" onerror="this.src='${fallbackThumb}'">
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-base font-bold truncate">${s.title}</p>
+                        <p class="text-xs text-gray-400">${s.artist}</p>
+                    </div>
+                    <i class="fa-solid fa-ellipsis-vertical text-gray-400"></i>
+                </div>
+            `).join('');
+        }
+
+        async function openArtistProfile(name, thumb) {
+            document.getElementById('artistNameDisplay').innerText = name;
+            document.getElementById('artistBanner').style.backgroundImage = `url(${thumb})`;
+            switchTab('artist-profile');
+            const results = await fetchSongs(name + " official tracks");
+            renderList('artistSongs', results);
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if(el) {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                el.classList.add('active');
+                if(tabId === 'search') {
+                    document.getElementById('searchDefault').style.display = 'block';
+                    document.getElementById('searchRecs').innerHTML = '';
+                    document.getElementById('mainSearch').value = '';
+                }
+            }
+        }
+
+        window.onload = () => {
+            loadHomeSections();
+            loadSearchRecommendations();
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('splash-screen').remove(), 500);
+            }, 1000);
         };
     </script>
 </body>
