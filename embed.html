@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Play YouTube Embedder</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #cc0000;
+        }
+        #videoContainer {
+            margin-top: 30px;
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            width: 100%;
+            background: #000;
+            display: none;
+        }
+        #videoContainer iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>YouTube Embedder</h2>
+    <input type="text" id="youtubeUrl" placeholder="Paste YouTube link here (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ)">
+    <button onclick="embedVideo()">Load & Play</button>
+
+    <div id="videoContainer">
+        <div id="player"></div>
+    </div>
+</div>
+
+<script>
+    function embedVideo() {
+        const urlInput = document.getElementById('youtubeUrl').value;
+        const videoId = extractVideoID(urlInput);
+        const container = document.getElementById('videoContainer');
+
+        if (videoId) {
+            // Construct the embed URL 
+            // autoplay=1 enables autoplay
+            // mute=0 ensures sound is on (though browser rules still apply)
+            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0`;
+            
+            container.innerHTML = `<iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            container.style.display = 'block';
+        } else {
+            alert("Please enter a valid YouTube URL");
+        }
+    }
+
+    function extractVideoID(url) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    }
+</script>
+
+</body>
+</html>
