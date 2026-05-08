@@ -1,3 +1,4 @@
 flask
-innertube
+flask-cors
+ytmusicapi
 gunicorn
