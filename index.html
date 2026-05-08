@@ -3,74 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Music Player</title>
+    <title>Spotify Clone</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; }
-        .container { max-width: 500px; margin: auto; padding: 20px; }
-        input { width: 80%; padding: 10px; border-radius: 20px; border: none; margin-bottom: 10px; }
-        button { padding: 10px 20px; border-radius: 20px; border: none; background: #1db954; color: white; cursor: pointer; }
-        .result-item { display: flex; align-items: center; background: #1e1e1e; margin: 10px 0; padding: 10px; cursor: pointer; border-radius: 8px; transition: 0.3s; }
-        .result-item:hover { background: #282828; }
-        .result-item img { width: 50px; height: 50px; margin-right: 15px; border-radius: 4px; }
-        #player-container { margin-top: 20px; position: sticky; bottom: 0; background: #121212; padding: 10px; }
+        body { background-color: #121212; color: white; font-family: sans-serif; margin: 0; }
+        .navbar { background: black; padding: 15px; display: flex; gap: 10px; }
+        input { padding: 10px; border-radius: 20px; border: none; width: 300px; }
+        .container { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        .song-card { background: #181818; padding: 15px; border-radius: 8px; transition: 0.3s; cursor: pointer; }
+        .song-card:hover { background: #282828; }
+        .song-card img { width: 100%; border-radius: 4px; }
+        .player-bar { position: fixed; bottom: 0; width: 100%; background: #181818; padding: 15px; border-top: 1px solid #282828; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Music Search</h1>
-    <input type="text" id="searchQuery" placeholder="Search for a song...">
-    <button onclick="searchMusic()">Search</button>
-    
-    <div id="results"></div>
-</div>
+    <div class="navbar">
+        <input type="text" id="search-input" placeholder="What do you want to listen to?">
+        <button onclick="searchMusic()" style="border-radius: 20px; cursor: pointer; padding: 10px 20px;">Search</button>
+    </div>
 
-<div id="player-container">
-    <div id="player"></div>
-</div>
+    <div class="container" id="results">
+        <!-- Search results will appear here -->
+    </div>
 
-<script>
-    // REPLACE THIS with your actual Render URL (e.g., https://your-app.onrender.com)
-    const RENDER_URL = "http://localhost:5000"; 
+    <div class="player-bar" id="player">
+        <div id="current-song">Select a song to play</div>
+        <audio id="audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
+    </div>
 
-    async function searchMusic() {
-        const query = document.getElementById('searchQuery').value;
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = "Searching...";
-
-        try {
-            const response = await fetch(`${RENDER_URL}/search?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
+    <script>
+        async function searchMusic() {
+            const query = document.getElementById('search-input').value;
+            const res = await fetch(`/search?q=${query}`);
+            const songs = await res.json();
             
-            resultsDiv.innerHTML = "";
-            data.forEach(song => {
-                const div = document.createElement('div');
-                div.className = 'result-item';
-                div.onclick = () => playSong(song.videoId);
-                div.innerHTML = `
-                    <img src="${song.thumbnail}" alt="thumb">
-                    <div style="text-align: left;">
-                        <strong>${song.title}</strong><br>
-                        <small>${song.artist}</small>
-                    </div>
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            songs.forEach(song => {
+                const card = document.createElement('div');
+                card.className = 'song-card';
+                card.innerHTML = `
+                    <img src="${song.thumbnail}">
+                    <h4>${song.title}</h4>
+                    <p style="color: #b3b3b3; font-size: 14px;">${song.artist}</p>
                 `;
-                resultsDiv.appendChild(div);
+                card.onclick = () => playSong(song.title, song.artist, song.id);
+                resultsDiv.appendChild(card);
             });
-        } catch (error) {
-            resultsDiv.innerHTML = "Error connecting to backend.";
-            console.error(error);
         }
-    }
 
-    function playSong(videoId) {
-        const playerDiv = document.getElementById('player');
-        playerDiv.innerHTML = `
-            <iframe width="100%" height="80" 
-                src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
-                frameborder="0" allow="autoplay; encrypted-media">
-            </iframe>`;
-    }
-</script>
-
+        function playSong(title, artist, id) {
+            document.getElementById('current-song').innerText = `${title} - ${artist}`;
+            // Note: Direct streaming requires a library like 'yt-dlp' or a proxy 
+            // because YouTube blocks direct video links. This is a placeholder:
+            alert("To play the audio, you'll need to add a stream extractor logic in Python!");
+        }
+    </script>
 </body>
 </html>
