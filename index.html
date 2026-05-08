@@ -3,94 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto-Play YouTube Embedder</title>
+    <title>Cloud Music Player</title>
     <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 50px;
-            background-color: #f4f4f9;
-        }
-        .container {
-            width: 100%;
-            max-width: 800px;
-            text-align: center;
-        }
-        input[type="text"] {
-            width: 70%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #ff0000;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover {
-            background-color: #cc0000;
-        }
-        #videoContainer {
-            margin-top: 30px;
-            position: relative;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-            height: 0;
-            overflow: hidden;
-            width: 100%;
-            background: #000;
-            display: none;
-        }
-        #videoContainer iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; }
+        .container { max-width: 500px; margin: auto; padding: 20px; }
+        input { width: 80%; padding: 10px; border-radius: 20px; border: none; margin-bottom: 10px; }
+        button { padding: 10px 20px; border-radius: 20px; border: none; background: #1db954; color: white; cursor: pointer; }
+        .result-item { display: flex; align-items: center; background: #1e1e1e; margin: 10px 0; padding: 10px; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        .result-item:hover { background: #282828; }
+        .result-item img { width: 50px; height: 50px; margin-right: 15px; border-radius: 4px; }
+        #player-container { margin-top: 20px; position: sticky; bottom: 0; background: #121212; padding: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>YouTube Embedder</h2>
-    <input type="text" id="youtubeUrl" placeholder="Paste YouTube link here (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ)">
-    <button onclick="embedVideo()">Load & Play</button>
+    <h1>Music Search</h1>
+    <input type="text" id="searchQuery" placeholder="Search for a song...">
+    <button onclick="searchMusic()">Search</button>
+    
+    <div id="results"></div>
+</div>
 
-    <div id="videoContainer">
-        <div id="player"></div>
-    </div>
+<div id="player-container">
+    <div id="player"></div>
 </div>
 
 <script>
-    function embedVideo() {
-        const urlInput = document.getElementById('youtubeUrl').value;
-        const videoId = extractVideoID(urlInput);
-        const container = document.getElementById('videoContainer');
+    // REPLACE THIS with your actual Render URL (e.g., https://your-app.onrender.com)
+    const RENDER_URL = "http://localhost:5000"; 
 
-        if (videoId) {
-            // Construct the embed URL 
-            // autoplay=1 enables autoplay
-            // mute=0 ensures sound is on (though browser rules still apply)
-            const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0`;
+    async function searchMusic() {
+        const query = document.getElementById('searchQuery').value;
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = "Searching...";
+
+        try {
+            const response = await fetch(`${RENDER_URL}/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
             
-            container.innerHTML = `<iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-            container.style.display = 'block';
-        } else {
-            alert("Please enter a valid YouTube URL");
+            resultsDiv.innerHTML = "";
+            data.forEach(song => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.onclick = () => playSong(song.videoId);
+                div.innerHTML = `
+                    <img src="${song.thumbnail}" alt="thumb">
+                    <div style="text-align: left;">
+                        <strong>${song.title}</strong><br>
+                        <small>${song.artist}</small>
+                    </div>
+                `;
+                resultsDiv.appendChild(div);
+            });
+        } catch (error) {
+            resultsDiv.innerHTML = "Error connecting to backend.";
+            console.error(error);
         }
     }
 
-    function extractVideoID(url) {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
+    function playSong(videoId) {
+        const playerDiv = document.getElementById('player');
+        playerDiv.innerHTML = `
+            <iframe width="100%" height="80" 
+                src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+                frameborder="0" allow="autoplay; encrypted-media">
+            </iframe>`;
     }
 </script>
 
